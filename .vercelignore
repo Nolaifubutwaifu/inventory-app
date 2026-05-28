@@ -1,0 +1,10 @@
+ios
+out
+.next
+node_modules
+.api-static-build-tmp
+scripts/sanity-routes.mjs
+scripts/scan-smoke.mjs
+scripts/scan-flag-off.mjs
+scripts/shot-itemform.mjs
+scripts/build-static.mjs

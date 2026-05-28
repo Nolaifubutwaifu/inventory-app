@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Inventory App
+
+A mobile-first warehouse stocktake tool. Catalog items locally, count them across
+sessions, and export to spreadsheet — all offline-first via IndexedDB.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000` on a phone or in DevTools mobile view.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## AI Scan (optional)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+When you sell similar items that look nearly identical (e.g. bins in different
+shades of green), the **Scan item** camera FAB on the Count screen will identify
+the item in front of you against per-item reference photos using Google's Gemini
+2.5 Flash.
 
-## Learn More
+### Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. Get a free key at <https://aistudio.google.com/apikey>.
+2. Copy `.env.local.example` → `.env.local` and paste it:
+   ```
+   GEMINI_API_KEY=AIza...
+   NEXT_PUBLIC_AI_SCAN_ENABLED=1
+   ```
+   If you're using a proxy that mirrors Google's REST API (e.g. a Data
+   Annotation `/api/llm_proxy/gemini` URL), also set:
+   ```
+   GOOGLE_GEMINI_BASE_URL=https://app.dataannotation.tech/api/llm_proxy/gemini
+   ```
+3. Restart `npm run dev`.
+4. Add 1–4 reference photos to each item (front / side / top / label) via the
+   "Reference photos for AI scan" field on the Item form.
+5. Open Count → tap the blue camera FAB at bottom-right → snap the item → pick
+   the right candidate from the top-3 list.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Cost & quota
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Gemini's free tier covers 10 requests/minute and 250/day — plenty for a single
+stocktake. Beyond that, the FAB will show "Slow down — try again in Ns". If you
+need higher limits, attach billing in Google AI Studio.
 
-## Deploy on Vercel
+### Privacy note
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Free-tier prompts to Gemini may be used by Google to improve their models. That
+means your SKUs and reference photos can be logged. If your catalog is
+confidential, use a paid Google Cloud project (data is not used for training on
+the paid tier) or skip the scan feature.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Test without burning quota
+
+Add `SCAN_MOCK=1` to `.env.local` and the API route returns canned matches
+without calling Gemini. Useful for UI testing.
+
+### Turn it off
+
+Set `NEXT_PUBLIC_AI_SCAN_ENABLED=0` (or remove the line) and the FAB disappears.
+The base counting flow is unchanged.

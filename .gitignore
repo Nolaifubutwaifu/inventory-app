@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.local.example
 
 # vercel
 .vercel
@@ -39,3 +40,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# capacitor / xcode
+ios/App/build/
+ios/App/Pods/
+ios/DerivedData/
+ios/App/App/public/
+ios/App/output/
+xcuserdata/
+
+# static-build temp dir (only present if a build was interrupted)
+.api-static-build-tmp/
