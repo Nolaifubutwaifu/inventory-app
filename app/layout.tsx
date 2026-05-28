@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { BottomNav } from "@/components/BottomNav";
+import { AppShell } from "@/components/AppShell";
 import { Providers } from "@/components/Providers";
 import { SeedOnMount } from "@/components/SeedOnMount";
 
@@ -40,12 +40,7 @@ export default function RootLayout({
       <body className="min-h-dvh bg-background text-foreground">
         <Providers>
           <SeedOnMount />
-          <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col">
-            <main className="flex-1 pb-24" style={{ paddingTop: "var(--safe-top)" }}>
-              {children}
-            </main>
-            <BottomNav />
-          </div>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

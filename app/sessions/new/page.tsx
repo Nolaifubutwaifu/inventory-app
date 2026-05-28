@@ -25,7 +25,7 @@ export default function NewSessionPage() {
     setBusy(true);
     try {
       const session = await createSession(name.trim() || defaultName(), countedBy.trim());
-      router.replace(`/sessions/${session.id}`);
+      router.replace(`/sessions/detail?id=${session.id}`);
     } finally {
       setBusy(false);
     }

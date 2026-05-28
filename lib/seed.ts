@@ -1,8 +1,8 @@
 import { db } from "./db";
 import { createItem, createSession } from "./repo";
 
-export async function ensureSeedData() {
-  const count = await db.items.count();
+export async function seedDemoDataForUser(userId: string) {
+  const count = await db.items.where("userId").equals(userId).count();
   if (count > 0) return;
 
   await createItem({
@@ -58,8 +58,8 @@ export async function ensureSeedData() {
     notes: "",
   });
 
-  const sessionCount = await db.sessions.count();
+  const sessionCount = await db.sessions.where("userId").equals(userId).count();
   if (sessionCount === 0) {
-    await createSession(`Stocktake — ${new Date().toLocaleDateString()}`, "Max");
+    await createSession(`Stocktake — ${new Date().toLocaleDateString()}`, "Me");
   }
 }

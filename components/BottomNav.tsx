@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, Download, Home, ListChecks } from "lucide-react";
+import { Boxes, Download, Home, ListChecks, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -25,6 +25,12 @@ const tabs = [
     icon: Download,
     match: (p: string) => p.startsWith("/export"),
   },
+  {
+    href: "/account",
+    label: "Account",
+    icon: User,
+    match: (p: string) => p.startsWith("/account"),
+  },
 ];
 
 export function BottomNav() {
@@ -34,7 +40,7 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-xl border-t border-border bg-surface/95 backdrop-blur"
       style={{ paddingBottom: "var(--safe-bottom)" }}
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {tabs.map((tab) => {
           const active = tab.match(pathname);
           const Icon = tab.icon;
@@ -43,11 +49,11 @@ export function BottomNav() {
               <Link
                 href={tab.href}
                 className={cn(
-                  "flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
+                  "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
                   active ? "text-primary" : "text-muted hover:text-foreground"
                 )}
               >
-                <Icon className="h-6 w-6" strokeWidth={active ? 2.5 : 2} />
+                <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
                 <span>{tab.label}</span>
               </Link>
             </li>

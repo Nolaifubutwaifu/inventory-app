@@ -1,13 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { ensureSeedData } from "@/lib/seed";
-
+// Seeding is now triggered explicitly on user registration (see app/auth/register).
+// This component is intentionally a no-op — left in place so the import in
+// layout.tsx stays valid for any future bootstrapping that needs to run client-side.
 export function SeedOnMount() {
-  useEffect(() => {
-    ensureSeedData().catch((e) => {
-      console.error("Failed to seed sample data", e);
-    });
-  }, []);
   return null;
 }

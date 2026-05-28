@@ -16,10 +16,12 @@ import {
   useItemsWithTotals,
   useSessions,
 } from "@/lib/hooks";
+import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/Button";
 
 export default function HomePage() {
+  const { user } = useAuth();
   const active = useActiveSession();
   const sessions = useSessions();
   const items = useItems();
@@ -34,9 +36,11 @@ export default function HomePage() {
     <div className="space-y-6 px-4 pt-8 pb-4">
       <header>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-          Warehouse
+          {user?.businessName ?? "Warehouse"}
         </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">Inventory</h1>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">
+          {user ? `Hey, ${user.displayName?.split(" ")[0] || "there"}` : "Inventory"}
+        </h1>
       </header>
 
       {active ? (

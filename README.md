@@ -3,6 +3,20 @@
 A mobile-first warehouse stocktake tool. Catalog items locally, count them across
 sessions, and export to spreadsheet — all offline-first via IndexedDB.
 
+## Accounts
+
+The app is multi-user, but accounts are **local to this device** for the
+prototype. Sign up with an email + business name, your data is scoped to your
+account in the browser's IndexedDB. Nothing leaves the device.
+
+For the production version, this swaps out for Supabase Auth + Postgres + Storage
+without touching the UI — `lib/auth.ts` and the userId scoping in `lib/repo.ts`
+are the only files that change.
+
+> **Rotating the Gemini API key?** See [`SECRETS.md`](./SECRETS.md) — it lives
+> in **two** places (laptop `.env.local` and Vercel project env). Updating only
+> one will break the app in confusing ways.
+
 ## Getting Started
 
 ```bash
