@@ -1,8 +1,18 @@
 "use client";
 
-// Seeding is now triggered explicitly on user registration (see app/auth/register).
-// This component is intentionally a no-op — left in place so the import in
-// layout.tsx stays valid for any future bootstrapping that needs to run client-side.
+import { useEffect } from "react";
+
+// Bootstraps client-only side effects that should run once per app load.
+// Currently: ask the browser to keep our IndexedDB on disk under storage
+// pressure (matters on iOS WKWebView where unprivileged origins can be evicted).
 export function SeedOnMount() {
+  useEffect(() => {
+    const nav = typeof navigator !== "undefined" ? navigator : undefined;
+    if (nav?.storage?.persist) {
+      nav.storage.persist().catch(() => {
+        // best-effort; ignore failures
+      });
+    }
+  }, []);
   return null;
 }

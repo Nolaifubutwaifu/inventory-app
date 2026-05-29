@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Boxes, Loader2, LogIn } from "lucide-react";
+import { Boxes, Loader2, LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useToast } from "@/components/Toast";
 import { AuthError, login, useAuth } from "@/lib/auth";
 
@@ -66,9 +67,8 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <Input
+          <PasswordInput
             label="Password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}
@@ -85,6 +85,10 @@ export default function LoginPage() {
               </>
             )}
           </Button>
+          <p className="flex items-center justify-center gap-1.5 text-xs text-muted">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Your data stays on this device.
+          </p>
         </form>
       </div>
 

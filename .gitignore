@@ -51,3 +51,4 @@ xcuserdata/
 
 # static-build temp dir (only present if a build was interrupted)
 .api-static-build-tmp/
+/dev.log

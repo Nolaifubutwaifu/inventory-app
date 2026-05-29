@@ -35,7 +35,7 @@ const email = `smoke-${Date.now()}@example.com`;
 await page.getByLabel("Business name").fill("Smoke Test Co.");
 await page.getByLabel("Your name").fill("Smoke");
 await page.getByLabel("Email").fill(email);
-await page.getByLabel("Password").fill("smoke123");
+await page.getByLabel("Password", { exact: true }).fill("smoke123");
 await page.getByRole("button", { name: /create account/i }).click();
 await page.waitForURL(/\/welcome/, { timeout: 5000 }).catch(() => {
   fail("Register did not redirect to /welcome");

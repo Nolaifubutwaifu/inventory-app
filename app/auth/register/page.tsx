@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Boxes, Loader2, UserPlus } from "lucide-react";
+import { Boxes, Loader2, ShieldCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useToast } from "@/components/Toast";
 import { AuthError, register, useAuth } from "@/lib/auth";
 import { seedDemoDataForUser } from "@/lib/seed";
@@ -103,9 +104,8 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             error={fieldError.email}
           />
-          <Input
+          <PasswordInput
             label="Password"
-            type="password"
             autoComplete="new-password"
             required
             value={password}
@@ -128,6 +128,10 @@ export default function RegisterPage() {
               </>
             )}
           </Button>
+          <p className="flex items-center justify-center gap-1.5 text-xs text-muted">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Your data stays on this device.
+          </p>
         </form>
       </div>
 

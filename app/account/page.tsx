@@ -8,6 +8,7 @@ import {
   LogOut,
   Mail,
   Sparkles,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/Button";
@@ -15,7 +16,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { Input } from "@/components/Input";
 import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/components/Toast";
-import { logout, updateProfile, useAuth } from "@/lib/auth";
+import { deleteAccount, logout, updateProfile, useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 
 export default function AccountPage() {
@@ -66,6 +67,29 @@ export default function AccountPage() {
       logout();
       router.replace("/auth/login");
     }
+  }
+
+  async function onDeleteAccount() {
+    if (!user) return;
+    const first = await confirm({
+      title: "Delete account?",
+      message:
+        "This permanently removes your account, every item, every count session, and all photos on this device. There is no undo.",
+      confirmLabel: "Continue",
+      destructive: true,
+    });
+    if (!first) return;
+    const second = await confirm({
+      title: "Are you absolutely sure?",
+      message: `Delete the account for ${user.email}? This cannot be reversed.`,
+      confirmLabel: "Delete forever",
+      destructive: true,
+    });
+    if (!second) return;
+    await deleteAccount(user.id);
+    logout();
+    toast.show("Account deleted", "success");
+    router.replace("/auth/register");
   }
 
   return (
@@ -150,6 +174,25 @@ export default function AccountPage() {
           <LogOut className="h-5 w-5" />
           Sign out
         </Button>
+
+        <section className="space-y-2 pt-4">
+          <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-danger">
+            Danger zone
+          </h2>
+          <div className="space-y-3 rounded-2xl border border-danger/30 bg-danger/5 p-4">
+            <p className="text-sm text-muted">
+              Deleting your account erases every item, count, and photo on this
+              device. There is no undo.
+            </p>
+            <button
+              onClick={onDeleteAccount}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger/40 bg-transparent px-4 py-3 text-sm font-semibold text-danger transition active:scale-[0.99] hover:bg-danger/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete account
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );

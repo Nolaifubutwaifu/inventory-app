@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   Boxes,
   Camera,
@@ -64,6 +65,7 @@ function WelcomeContent() {
   const replay = search.get("replay") === "1";
   const { userId, user, loading, refresh } = useAuth();
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<(HTMLElement | null)[]>([]);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -73,18 +75,34 @@ function WelcomeContent() {
     }
   }, [loading, userId, router]);
 
+  useEffect(() => {
+    const root = scrollerRef.current;
+    if (!root) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        // Pick the entry with the highest intersection ratio that is at least
+        // half visible — avoids dot flicker mid-swipe.
+        let best: { i: number; ratio: number } | null = null;
+        for (const entry of entries) {
+          if (entry.intersectionRatio < 0.5) continue;
+          const i = Number((entry.target as HTMLElement).dataset.slideIndex);
+          if (!best || entry.intersectionRatio > best.ratio) {
+            best = { i, ratio: entry.intersectionRatio };
+          }
+        }
+        if (best) setIndex(best.i);
+      },
+      { root, threshold: [0.5, 0.75, 1] }
+    );
+    slideRefs.current.forEach((el) => el && obs.observe(el));
+    return () => obs.disconnect();
+  }, []);
+
   function scrollToSlide(i: number) {
     const el = scrollerRef.current;
     if (!el) return;
     const slideWidth = el.clientWidth;
     el.scrollTo({ left: i * slideWidth, behavior: "smooth" });
-  }
-
-  function onScroll() {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const i = Math.round(el.scrollLeft / el.clientWidth);
-    if (i !== index) setIndex(i);
   }
 
   async function finish() {
@@ -103,6 +121,10 @@ function WelcomeContent() {
     }
   }
 
+  function back() {
+    if (index > 0) scrollToSlide(index - 1);
+  }
+
   const isLast = index === slides.length - 1;
 
   return (
@@ -111,10 +133,20 @@ function WelcomeContent() {
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
       <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted">
-          <Sparkles className="h-4 w-4 text-primary" />
-          {user?.businessName || "Welcome"}
-        </div>
+        {index > 0 ? (
+          <button
+            onClick={back}
+            aria-label="Previous slide"
+            className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-surface hover:text-foreground"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted">
+            <Sparkles className="h-4 w-4 text-primary" />
+            {user?.businessName || "Welcome"}
+          </div>
+        )}
         {!replay && (
           <button
             onClick={finish}
@@ -135,7 +167,6 @@ function WelcomeContent() {
 
       <div
         ref={scrollerRef}
-        onScroll={onScroll}
         className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         style={{ scrollSnapType: "x mandatory" }}
       >
@@ -145,6 +176,10 @@ function WelcomeContent() {
             return (
               <section
                 key={i}
+                ref={(el) => {
+                  slideRefs.current[i] = el;
+                }}
+                data-slide-index={i}
                 className="flex h-full w-full shrink-0 snap-center flex-col items-center justify-center gap-8 px-8"
                 aria-hidden={i !== index}
               >

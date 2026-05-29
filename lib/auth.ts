@@ -211,6 +211,24 @@ export async function updateProfile(
   await db.users.update(userId, patch);
 }
 
+// Cascade-deletes the user and everything they own. Caller is responsible for
+// clearing the current-user pointer (or calling logout()) afterward.
+export async function deleteAccount(userId: string): Promise<void> {
+  await db.transaction(
+    "rw",
+    db.users,
+    db.items,
+    db.sessions,
+    db.entries,
+    async () => {
+      await db.entries.where("userId").equals(userId).delete();
+      await db.sessions.where("userId").equals(userId).delete();
+      await db.items.where("userId").equals(userId).delete();
+      await db.users.delete(userId);
+    }
+  );
+}
+
 // ---------- React context + hook ----------
 
 interface AuthContextValue {
