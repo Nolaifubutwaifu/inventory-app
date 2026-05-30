@@ -27,6 +27,11 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
             className="text-sm font-medium text-foreground"
           >
             {label}
+            {rest.required && (
+              <span aria-hidden="true" className="ml-0.5 text-danger">
+                *
+              </span>
+            )}
           </label>
         )}
         <div className="relative">

@@ -18,7 +18,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <label className="flex flex-col gap-1.5">
       {label && (
-        <span className="text-sm font-medium text-foreground">{label}</span>
+        <span className="text-sm font-medium text-foreground">
+          {label}
+          {rest.required && (
+            <span aria-hidden="true" className="ml-0.5 text-danger">
+              *
+            </span>
+          )}
+        </span>
       )}
       <input
         ref={ref}
