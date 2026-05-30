@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { MapPin, Minus, Plus, Trash2, Undo2 } from "lucide-react";
+import { MapPin, Minus, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
@@ -57,7 +57,6 @@ function CountItemInner() {
   const [location, setLocation] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [lastEntryId, setLastEntryId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const justAddedRef = useRef(false);
 
@@ -99,14 +98,13 @@ function CountItemInner() {
     if (!Number.isFinite(numericQty) || numericQty === 0) return;
     setBusy(true);
     try {
-      const entry = await addEntry({
+      await addEntry({
         sessionId: session.id,
         itemId: item.id,
         quantity: Math.trunc(numericQty),
         location: location.trim(),
       });
       const newTotal = total + Math.trunc(numericQty);
-      setLastEntryId(entry.id);
       setQty("");
       justAddedRef.current = true;
       haptic("success");
@@ -120,14 +118,6 @@ function CountItemInner() {
     }
   }
 
-  async function onUndo() {
-    if (!lastEntryId) return;
-    await deleteEntry(lastEntryId);
-    setLastEntryId(null);
-    haptic("warning");
-    toast.show("Last count undone", "info");
-  }
-
   async function onDeleteEntry(id: string) {
     const ok = await confirm({
       title: "Delete this count?",
@@ -137,7 +127,6 @@ function CountItemInner() {
     });
     if (!ok) return;
     await deleteEntry(id);
-    if (lastEntryId === id) setLastEntryId(null);
     haptic("warning");
     toast.show("Entry deleted");
   }
@@ -317,16 +306,6 @@ function CountItemInner() {
         style={{ bottom: "calc(4rem + var(--safe-bottom))" }}
       >
         <div className="flex items-center gap-2 p-3">
-          {lastEntryId && (
-            <button
-              type="button"
-              onClick={onUndo}
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-foreground active:scale-95"
-              aria-label="Undo last count"
-            >
-              <Undo2 className="h-5 w-5" />
-            </button>
-          )}
           <Button
             size="lg"
             block
