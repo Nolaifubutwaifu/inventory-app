@@ -311,10 +311,10 @@ function CountItemInner() {
         </section>
       </div>
 
-      {/* Sticky Add button */}
+      {/* Sticky Add button — sits above BottomNav including its safe-area padding */}
       <div
-        className="fixed inset-x-0 bottom-16 z-30 mx-auto w-full max-w-xl border-t border-border bg-surface/95 backdrop-blur"
-        style={{ paddingBottom: "0" }}
+        className="fixed inset-x-0 z-30 mx-auto w-full max-w-xl border-t border-border bg-surface/95 backdrop-blur"
+        style={{ bottom: "calc(4rem + var(--safe-bottom))" }}
       >
         <div className="flex items-center gap-2 p-3">
           {lastEntryId && (

@@ -180,7 +180,10 @@ export function ItemForm({ item }: ItemFormProps) {
         onChange={setReferencePhotos}
       />
 
-      <div className="fixed inset-x-0 bottom-16 z-30 mx-auto w-full max-w-xl border-t border-border bg-surface/95 p-3 backdrop-blur">
+      <div
+        className="fixed inset-x-0 z-30 mx-auto w-full max-w-xl border-t border-border bg-surface/95 p-3 backdrop-blur"
+        style={{ bottom: "calc(4rem + var(--safe-bottom))" }}
+      >
         <div className="flex gap-2">
           {isEdit && (
             <Button type="button" variant="ghost" onClick={onDelete} size="lg">
