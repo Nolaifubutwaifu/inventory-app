@@ -1,18 +1,21 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { Camera, Scan, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Camera, ChevronDown, Scan, Trash2 } from "lucide-react";
 import { Button } from "./Button";
 import { Input, Textarea } from "./Input";
 import { ItemPhoto } from "./ItemPhoto";
 import { ReferencePhotosField } from "./ReferencePhotosField";
 import { BarcodeScanSheet } from "./BarcodeScanSheet";
 import { createItem, deleteItem, updateItem } from "@/lib/repo";
+import { useCategories } from "@/lib/hooks";
 import { fileToDataUrl } from "@/lib/utils";
 import type { Item } from "@/lib/types";
 import { useToast } from "./Toast";
 import { useConfirm } from "./ConfirmDialog";
+
+const NEW_CATEGORY_SENTINEL = "__new_category__";
 
 interface ItemFormProps {
   item?: Item;
@@ -27,7 +30,7 @@ export function ItemForm({ item }: ItemFormProps) {
 
   const [name, setName] = useState(item?.name ?? "");
   const [sku, setSku] = useState(item?.sku ?? "");
-  const [category, setCategory] = useState(item?.category ?? "Bin");
+  const [category, setCategory] = useState(item?.category ?? "Item");
   const [color, setColor] = useState(item?.color ?? "");
   const [size, setSize] = useState(item?.size ?? "");
   const [matchingLidSku, setMatchingLidSku] = useState(item?.matchingLidSku ?? "");
@@ -39,6 +42,33 @@ export function ItemForm({ item }: ItemFormProps) {
   );
   const [busy, setBusy] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const categoryInputRef = useRef<HTMLInputElement | null>(null);
+
+  const categories = useCategories();
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>(categories ?? []);
+    const trimmed = category.trim();
+    if (trimmed) set.add(trimmed);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [categories, category]);
+
+  function onCategorySelect(value: string) {
+    if (value === NEW_CATEGORY_SENTINEL) {
+      setCreatingCategory(true);
+      setCategory("");
+      requestAnimationFrame(() => categoryInputRef.current?.focus());
+      return;
+    }
+    setCategory(value);
+  }
+
+  function cancelNewCategory() {
+    setCreatingCategory(false);
+    if (!category.trim()) {
+      setCategory(categoryOptions[0] ?? "Item");
+    }
+  }
 
   async function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -158,12 +188,46 @@ export function ItemForm({ item }: ItemFormProps) {
           placeholder="60L"
         />
       </div>
-      <Input
-        label="Category"
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        placeholder="Bin / Lid / …"
-      />
+      {creatingCategory ? (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-foreground">Category</span>
+          <input
+            ref={categoryInputRef}
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="e.g. Crate"
+            autoCapitalize="words"
+            className="h-12 w-full rounded-xl border border-border bg-surface px-4 text-base outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+          />
+          <button
+            type="button"
+            onClick={cancelNewCategory}
+            className="self-start text-xs text-primary hover:underline"
+          >
+            Pick existing category
+          </button>
+        </div>
+      ) : (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-foreground">Category</span>
+          <div className="relative">
+            <select
+              value={category}
+              onChange={(e) => onCategorySelect(e.target.value)}
+              className="h-12 w-full appearance-none rounded-xl border border-border bg-surface pl-4 pr-10 text-base outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+            >
+              {categoryOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+              <option value={NEW_CATEGORY_SENTINEL}>+ Add new category…</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" />
+          </div>
+        </label>
+      )}
       <div className="flex items-end gap-2">
         <div className="flex-1">
           <Input

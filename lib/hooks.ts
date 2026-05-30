@@ -55,6 +55,20 @@ export function useItems(): Item[] | undefined {
   }, [userId]);
 }
 
+export function useCategories(): string[] | undefined {
+  const userId = useCurrentUserId();
+  return useLiveQuery(async () => {
+    if (!userId) return [];
+    const rows = await db.items.where("userId").equals(userId).toArray();
+    const set = new Set<string>();
+    for (const it of rows) {
+      const c = it.category?.trim();
+      if (c) set.add(c);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [userId]);
+}
+
 export function useItem(id: string | undefined): Item | undefined {
   const userId = useCurrentUserId();
   return useLiveQuery(async () => {
