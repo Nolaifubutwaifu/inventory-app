@@ -2,11 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { Camera, Trash2 } from "lucide-react";
+import { Camera, Scan, Trash2 } from "lucide-react";
 import { Button } from "./Button";
 import { Input, Textarea } from "./Input";
 import { ItemPhoto } from "./ItemPhoto";
 import { ReferencePhotosField } from "./ReferencePhotosField";
+import { BarcodeScanSheet } from "./BarcodeScanSheet";
 import { createItem, deleteItem, updateItem } from "@/lib/repo";
 import { fileToDataUrl } from "@/lib/utils";
 import type { Item } from "@/lib/types";
@@ -32,10 +33,12 @@ export function ItemForm({ item }: ItemFormProps) {
   const [matchingLidSku, setMatchingLidSku] = useState(item?.matchingLidSku ?? "");
   const [notes, setNotes] = useState(item?.notes ?? "");
   const [photoUrl, setPhotoUrl] = useState(item?.photoUrl ?? "");
+  const [barcode, setBarcode] = useState(item?.barcode ?? "");
   const [referencePhotos, setReferencePhotos] = useState<string[]>(
     item?.referencePhotos ?? []
   );
   const [busy, setBusy] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
 
   async function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -58,6 +61,7 @@ export function ItemForm({ item }: ItemFormProps) {
         matchingLidSku: matchingLidSku.trim() || undefined,
         notes: notes.trim() || undefined,
         photoUrl: photoUrl || undefined,
+        barcode: barcode.trim() || undefined,
         referencePhotos: referencePhotos.length ? referencePhotos : undefined,
       };
       if (isEdit && item) {
@@ -160,6 +164,28 @@ export function ItemForm({ item }: ItemFormProps) {
         onChange={(e) => setCategory(e.target.value)}
         placeholder="Bin / Lid / …"
       />
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <Input
+            label="Barcode"
+            hint="Optional — used by the barcode scanner."
+            value={barcode}
+            onChange={(e) => setBarcode(e.target.value)}
+            placeholder="e.g. 4006381333931"
+            inputMode="numeric"
+            autoComplete="off"
+          />
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          onClick={() => setScanOpen(true)}
+        >
+          <Scan className="h-5 w-5" /> Scan
+        </Button>
+      </div>
+
       <Input
         label="Matching lid SKU"
         hint="Optional — link a bin to its matching lid."
@@ -178,6 +204,19 @@ export function ItemForm({ item }: ItemFormProps) {
       <ReferencePhotosField
         value={referencePhotos}
         onChange={setReferencePhotos}
+      />
+
+      <BarcodeScanSheet
+        open={scanOpen}
+        mode="capture"
+        onClose={() => setScanOpen(false)}
+        onResult={(r) => {
+          if (r.kind === "captured") {
+            setBarcode(r.code);
+            toast.show(`Captured ${r.code}`, "success");
+          }
+          setScanOpen(false);
+        }}
       />
 
       <div

@@ -2,7 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Camera, ChevronRight, Loader2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Camera,
+  ChevronRight,
+  Loader2,
+  Scan,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useItems } from "@/lib/hooks";
 import { isScanEnabled } from "@/lib/scan/featureFlag";
 import { fileToCompressedDataUrl, compressDataUrl } from "@/lib/scan/image";
@@ -15,6 +23,7 @@ import type {
 } from "@/lib/scan/types";
 import { ItemPhoto } from "./ItemPhoto";
 import { Button } from "./Button";
+import { BarcodeScanSheet } from "./BarcodeScanSheet";
 import { haptic } from "@/lib/haptic";
 
 type SheetState =
@@ -30,6 +39,10 @@ export function ScanFab() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<SheetState>({ kind: "idle" });
   const [countdown, setCountdown] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
+
+  const aiEnabled = isScanEnabled();
 
   // Tick down the rate-limit countdown.
   useEffect(() => {
@@ -48,7 +61,24 @@ export function ScanFab() {
     return () => clearInterval(t);
   }, [state]);
 
-  if (!isScanEnabled()) return null;
+  function onFabTap() {
+    haptic("tap");
+    if (aiEnabled) {
+      setMenuOpen((v) => !v);
+    } else {
+      setBarcodeOpen(true);
+    }
+  }
+
+  function pickAi() {
+    setMenuOpen(false);
+    fileRef.current?.click();
+  }
+
+  function pickBarcode() {
+    setMenuOpen(false);
+    setBarcodeOpen(true);
+  }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -151,13 +181,54 @@ export function ScanFab() {
 
   return (
     <>
+      {menuOpen && (
+        <button
+          type="button"
+          aria-label="Close scan menu"
+          onClick={() => setMenuOpen(false)}
+          className="fixed inset-0 z-30 bg-transparent"
+        />
+      )}
+
+      {menuOpen && aiEnabled && (
+        <div className="fixed bottom-44 right-4 z-40 w-52 overflow-hidden rounded-2xl border border-border bg-surface shadow-xl">
+          <button
+            type="button"
+            onClick={pickAi}
+            className="flex w-full items-center gap-3 px-3.5 py-3 text-left hover:bg-surface-2 active:bg-surface-2"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">AI scan</span>
+              <span className="block text-[11px] text-muted">Photo match</span>
+            </span>
+          </button>
+          <div className="h-px bg-border" />
+          <button
+            type="button"
+            onClick={pickBarcode}
+            className="flex w-full items-center gap-3 px-3.5 py-3 text-left hover:bg-surface-2 active:bg-surface-2"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-2 text-foreground">
+              <Scan className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Barcode</span>
+              <span className="block text-[11px] text-muted">Instant lookup</span>
+            </span>
+          </button>
+        </div>
+      )}
+
       <button
         type="button"
-        onClick={() => fileRef.current?.click()}
-        className="fixed bottom-24 right-4 z-30 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-fg shadow-lg shadow-primary/30 active:scale-95"
-        aria-label="Scan item with camera"
+        onClick={onFabTap}
+        className="fixed bottom-24 right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-fg shadow-lg shadow-primary/30 active:scale-95"
+        aria-label={aiEnabled ? "Scan menu" : "Barcode scan"}
       >
-        <Camera className="h-7 w-7" />
+        {menuOpen ? <X className="h-7 w-7" /> : <Camera className="h-7 w-7" />}
       </button>
 
       <input
@@ -167,6 +238,18 @@ export function ScanFab() {
         capture="environment"
         className="hidden"
         onChange={onPick}
+      />
+
+      <BarcodeScanSheet
+        open={barcodeOpen}
+        mode="lookup"
+        onClose={() => setBarcodeOpen(false)}
+        onResult={(r) => {
+          if (r.kind === "match") {
+            setBarcodeOpen(false);
+            router.push(`/count/detail?id=${r.item.id}`);
+          }
+        }}
       />
 
       {open && (

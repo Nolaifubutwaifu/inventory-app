@@ -56,6 +56,17 @@ export async function updateItem(
   await db.items.update(id, { ...patch, updatedAt: now() });
 }
 
+export async function findItemByBarcode(barcode: string): Promise<Item | undefined> {
+  const u = uid();
+  const trimmed = barcode.trim();
+  if (!trimmed) return undefined;
+  const rows = await db.items
+    .where("[userId+barcode]")
+    .equals([u, trimmed])
+    .toArray();
+  return rows[0];
+}
+
 export async function deleteItem(id: string): Promise<void> {
   const u = uid();
   await db.transaction("rw", db.items, db.entries, async () => {
