@@ -29,7 +29,7 @@ const email = `shot-${Date.now()}@example.com`;
 await page.getByLabel("Business name").fill("Acme Storage Co.");
 await page.getByLabel("Your name").fill("Sam");
 await page.getByLabel("Email").fill(email);
-await page.getByLabel("Password").fill("password123");
+await page.getByLabel("Password", { exact: true }).fill("password123");
 await page.getByRole("button", { name: /create account/i }).click();
 await page.waitForURL(/\/welcome/, { timeout: 5000 });
 await page.waitForTimeout(600);

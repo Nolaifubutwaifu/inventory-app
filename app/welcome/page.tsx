@@ -130,9 +130,9 @@ function WelcomeContent() {
   return (
     <div
       className="flex min-h-dvh flex-col bg-background"
-      style={{ paddingTop: "env(safe-area-inset-top)" }}
+      style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
     >
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between px-4 py-4">
         {index > 0 ? (
           <button
             onClick={back}
@@ -238,7 +238,7 @@ export default function WelcomePage() {
       fallback={
         <div
           className="flex min-h-dvh items-center justify-center text-muted"
-          style={{ paddingTop: "env(safe-area-inset-top)" }}
+          style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
         >
           Loading…
         </div>
