@@ -1,6 +1,10 @@
 import { db } from "./db";
-import { createItem, createSession } from "./repo";
+import { createItem } from "./repo";
 
+// Seeds a sample catalog so a brand-new user can immediately see the count
+// flow, item editor, and AI scan against realistic data. Does NOT create a
+// session — the user should start their own first stocktake from the Home
+// screen's "Start a new stocktake" CTA.
 export async function seedDemoDataForUser(userId: string) {
   const count = await db.items.where("userId").equals(userId).count();
   if (count > 0) return;
@@ -57,9 +61,4 @@ export async function seedDemoDataForUser(userId: string) {
     matchingLidSku: "LID-120-BLK",
     notes: "",
   });
-
-  const sessionCount = await db.sessions.where("userId").equals(userId).count();
-  if (sessionCount === 0) {
-    await createSession(`Stocktake — ${new Date().toLocaleDateString()}`, "Me");
-  }
 }
