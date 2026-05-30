@@ -28,6 +28,16 @@ export function formatDateTime(ts: number): string {
   });
 }
 
+// AND-matches every whitespace-separated token in `query` against the joined
+// haystack. Lets "bin black" match an item whose name, color, and SKU don't
+// sit next to each other in any single field.
+export function matchesQuery(query: string, fields: (string | undefined | null)[]): boolean {
+  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return true;
+  const haystack = fields.filter(Boolean).join(" ").toLowerCase();
+  return tokens.every((t) => haystack.includes(t));
+}
+
 export async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

@@ -8,7 +8,7 @@ import { Button } from "@/components/Button";
 import { ItemPhoto } from "@/components/ItemPhoto";
 import { ScanFab } from "@/components/ScanFab";
 import { useActiveSession, useItemsWithTotals } from "@/lib/hooks";
-import { displayPhoto, formatDate } from "@/lib/utils";
+import { displayPhoto, formatDate, matchesQuery } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 const ALL = "__all__";
@@ -29,17 +29,13 @@ export default function CountPage() {
 
   const filtered = useMemo(() => {
     if (!items) return [];
-    const query = q.trim().toLowerCase();
     let list = items;
     if (filter === "counted") list = list.filter((i) => i.total > 0);
     if (filter === "not-counted") list = list.filter((i) => i.total === 0);
     if (category !== ALL) list = list.filter((i) => i.category === category);
-    if (!query) return list;
+    if (!q.trim()) return list;
     return list.filter((i) =>
-      [i.name, i.sku, i.color, i.size, i.category]
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
+      matchesQuery(q, [i.name, i.sku, i.color, i.size, i.category, i.notes])
     );
   }, [items, q, filter, category]);
 

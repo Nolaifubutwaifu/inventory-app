@@ -7,7 +7,7 @@ import { useItems } from "@/lib/hooks";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { ItemPhoto } from "@/components/ItemPhoto";
-import { cn, displayPhoto } from "@/lib/utils";
+import { cn, displayPhoto, matchesQuery } from "@/lib/utils";
 
 const ALL = "__all__";
 
@@ -27,15 +27,11 @@ export default function ItemsPage() {
 
   const filtered = useMemo(() => {
     if (!items) return [];
-    const query = q.trim().toLowerCase();
     let list = items;
     if (category !== ALL) list = list.filter((i) => i.category === category);
-    if (!query) return list;
+    if (!q.trim()) return list;
     return list.filter((i) =>
-      [i.name, i.sku, i.color, i.size, i.category]
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
+      matchesQuery(q, [i.name, i.sku, i.color, i.size, i.category, i.notes])
     );
   }, [items, q, category]);
 
