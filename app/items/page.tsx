@@ -7,6 +7,7 @@ import { useItems } from "@/lib/hooks";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { ItemPhoto } from "@/components/ItemPhoto";
+import { ItemsTabs } from "@/components/ItemsTabs";
 import { cn, displayPhoto, matchesQuery } from "@/lib/utils";
 
 const ALL = "__all__";
@@ -48,7 +49,8 @@ export default function ItemsPage() {
           </Link>
         }
       />
-      <div className="space-y-3 p-4">
+      <ItemsTabs current="items" />
+      <div className="space-y-3 p-4 pt-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" />
           <input

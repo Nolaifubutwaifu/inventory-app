@@ -23,6 +23,7 @@ export interface Item {
   size: string;
   photoUrl?: string;
   referencePhotos?: string[];
+  barcode?: string;
   matchingLidSku?: string;
   notes?: string;
   createdAt: number;
@@ -53,4 +54,11 @@ export interface CountEntry {
 export interface ItemWithTotal extends Item {
   total: number;
   entryCount: number;
+}
+
+export interface LocationTemplate {
+  id: ID;
+  userId: ID;
+  label: string;
+  createdAt: number;
 }

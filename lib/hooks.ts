@@ -8,7 +8,13 @@ import {
   listEntriesForItemInSession,
   listEntriesForSession,
 } from "./repo";
-import type { CountEntry, CountSession, Item, ItemWithTotal } from "./types";
+import type {
+  CountEntry,
+  CountSession,
+  Item,
+  ItemWithTotal,
+  LocationTemplate,
+} from "./types";
 
 export function useActiveSession(): CountSession | undefined {
   const userId = useCurrentUserId();
@@ -78,6 +84,18 @@ export function useEntriesForSession(
       sessionId && userId ? await listEntriesForSession(sessionId) : [],
     [sessionId, userId]
   );
+}
+
+export function useLocationTemplates(): LocationTemplate[] | undefined {
+  const userId = useCurrentUserId();
+  return useLiveQuery(async () => {
+    if (!userId) return [];
+    const rows = await db.locationTemplates
+      .where("userId")
+      .equals(userId)
+      .toArray();
+    return rows.sort((a, b) => a.createdAt - b.createdAt);
+  }, [userId]);
 }
 
 export function useEntriesForItem(

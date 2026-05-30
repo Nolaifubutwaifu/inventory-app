@@ -14,6 +14,7 @@ import {
   useEntriesForItem,
   useEntriesForSession,
   useItem,
+  useLocationTemplates,
 } from "@/lib/hooks";
 import { addEntry, deleteEntry, updateEntry } from "@/lib/repo";
 import { displayPhoto, formatDateTime } from "@/lib/utils";
@@ -36,8 +37,23 @@ function CountItemInner() {
   const item = useItem(itemId);
   const entries = useEntriesForItem(session?.id, itemId);
   const allEntries = useEntriesForSession(session?.id);
+  const locationTemplates = useLocationTemplates();
   const toast = useToast();
   const confirm = useConfirm();
+  const locationInputRef = useRef<HTMLInputElement | null>(null);
+
+  function applyTemplate(label: string) {
+    haptic("tap");
+    const prefix = `${label} `;
+    setLocation(prefix);
+    requestAnimationFrame(() => {
+      const el = locationInputRef.current;
+      if (!el) return;
+      el.focus();
+      const end = prefix.length;
+      el.setSelectionRange(end, end);
+    });
+  }
 
   const recentLocations = useMemo(() => {
     if (!allEntries) return [];
@@ -272,11 +288,27 @@ function CountItemInner() {
 
           <div className="pt-1">
             <Input
+              ref={locationInputRef}
               label="Location"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. Aisle 3"
             />
+            {locationTemplates && locationTemplates.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {locationTemplates.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => applyTemplate(t.label)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary active:scale-95"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {recentLocations.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {recentLocations.map((l) => (

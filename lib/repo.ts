@@ -1,6 +1,12 @@
 import { getCurrentUserIdSync } from "./auth";
 import { db, newId, now } from "./db";
-import type { CountEntry, CountSession, Item, ItemWithTotal } from "./types";
+import type {
+  CountEntry,
+  CountSession,
+  Item,
+  ItemWithTotal,
+  LocationTemplate,
+} from "./types";
 
 function uid(): string {
   const id = getCurrentUserIdSync();
@@ -186,6 +192,48 @@ export async function totalForItemInSession(
     .equals([u, sessionId, itemId])
     .toArray();
   return entries.reduce((sum, e) => sum + e.quantity, 0);
+}
+
+// ===== Location templates =====
+
+export async function listLocationTemplates(): Promise<LocationTemplate[]> {
+  const u = uid();
+  const rows = await db.locationTemplates.where("userId").equals(u).toArray();
+  return rows.sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export async function createLocationTemplate(label: string): Promise<LocationTemplate> {
+  const u = uid();
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Label is required");
+  const existing = await db.locationTemplates.where("userId").equals(u).toArray();
+  if (existing.some((t) => t.label.toLowerCase() === trimmed.toLowerCase())) {
+    throw new Error("That template already exists");
+  }
+  const template: LocationTemplate = {
+    id: newId(),
+    userId: u,
+    label: trimmed,
+    createdAt: now(),
+  };
+  await db.locationTemplates.add(template);
+  return template;
+}
+
+export async function updateLocationTemplate(id: string, label: string): Promise<void> {
+  const u = uid();
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Label is required");
+  const existing = await db.locationTemplates.get(id);
+  if (!existing || existing.userId !== u) return;
+  await db.locationTemplates.update(id, { label: trimmed });
+}
+
+export async function deleteLocationTemplate(id: string): Promise<void> {
+  const u = uid();
+  const existing = await db.locationTemplates.get(id);
+  if (!existing || existing.userId !== u) return;
+  await db.locationTemplates.delete(id);
 }
 
 // ===== Aggregations =====

@@ -1,11 +1,18 @@
 import Dexie, { type Table } from "dexie";
-import type { CountEntry, CountSession, Item, User } from "./types";
+import type {
+  CountEntry,
+  CountSession,
+  Item,
+  LocationTemplate,
+  User,
+} from "./types";
 
 class InventoryDB extends Dexie {
   users!: Table<User, string>;
   items!: Table<Item, string>;
   sessions!: Table<CountSession, string>;
   entries!: Table<CountEntry, string>;
+  locationTemplates!: Table<LocationTemplate, string>;
 
   constructor() {
     super("inventory-app");
@@ -34,6 +41,23 @@ class InventoryDB extends Dexie {
         await tx.table("sessions").clear();
         await tx.table("entries").clear();
       });
+    // v4: add `barcode` index on items for fast lookup. Optional field, no data migration.
+    this.version(4).stores({
+      users: "id, &email, createdAt",
+      items: "id, userId, [userId+name], [userId+sku], [userId+barcode], sku, updatedAt",
+      sessions: "id, userId, [userId+status], [userId+createdAt], createdAt",
+      entries:
+        "id, userId, sessionId, itemId, [userId+sessionId], [sessionId+itemId], [userId+sessionId+itemId], createdAt",
+    });
+    // v5: locationTemplates table for user-managed quick-pick location chips.
+    this.version(5).stores({
+      users: "id, &email, createdAt",
+      items: "id, userId, [userId+name], [userId+sku], [userId+barcode], sku, updatedAt",
+      sessions: "id, userId, [userId+status], [userId+createdAt], createdAt",
+      entries:
+        "id, userId, sessionId, itemId, [userId+sessionId], [sessionId+itemId], [userId+sessionId+itemId], createdAt",
+      locationTemplates: "id, userId, [userId+createdAt], createdAt",
+    });
   }
 }
 
