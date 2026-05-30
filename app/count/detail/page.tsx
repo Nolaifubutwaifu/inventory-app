@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { MapPin, Minus, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, MapPin, Minus, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
@@ -57,10 +57,28 @@ function CountItemInner() {
   const [location, setLocation] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showByLocation, setShowByLocation] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const justAddedRef = useRef(false);
 
   const total = entries?.reduce((sum, e) => sum + e.quantity, 0) ?? 0;
+
+  const byLocation = useMemo(() => {
+    if (!entries) return [];
+    const totals = new Map<string, number>();
+    for (const e of entries) {
+      const key = e.location?.trim() || "Other";
+      totals.set(key, (totals.get(key) ?? 0) + e.quantity);
+    }
+    return Array.from(totals.entries())
+      .map(([location, quantity]) => ({ location, quantity }))
+      .sort((a, b) => {
+        if (a.location === "Other") return 1;
+        if (b.location === "Other") return -1;
+        return b.quantity - a.quantity;
+      });
+  }, [entries]);
+
   const numericQty = qty === "" || qty === "-" ? NaN : Number(qty);
 
   // Focus the qty input on first render
@@ -142,19 +160,56 @@ function CountItemInner() {
       <PageHeader title={item.name} subtitle={`${item.sku} · ${item.color}`} back="/count" />
 
       <div className="space-y-4 p-4 pb-44">
-        {/* Hero: total card */}
-        <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4">
-          <ItemPhoto src={displayPhoto(item)} alt={item.name} size="lg" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] uppercase tracking-wider text-muted">
-              Total in this session
-            </p>
-            <p className="text-5xl font-bold tabular-nums leading-none mt-1">{total}</p>
-            <p className="mt-2 text-xs text-muted">
-              {entries?.length ?? 0} entr
-              {(entries?.length ?? 0) === 1 ? "y" : "ies"} · {item.size}
-            </p>
+        {/* Hero: total card — collapsible by-location breakdown */}
+        <div className="rounded-2xl border border-border bg-surface">
+          <div className="flex items-center gap-4 p-4">
+            <ItemPhoto src={displayPhoto(item)} alt={item.name} size="lg" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] uppercase tracking-wider text-muted">
+                Total in this session
+              </p>
+              <p className="text-5xl font-bold tabular-nums leading-none mt-1">{total}</p>
+              <p className="mt-2 text-xs text-muted">
+                {entries?.length ?? 0} entr
+                {(entries?.length ?? 0) === 1 ? "y" : "ies"} · {item.size}
+              </p>
+            </div>
+            {byLocation.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowByLocation((v) => !v)}
+                aria-expanded={showByLocation}
+                aria-label={showByLocation ? "Hide locations" : "Show by location"}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted active:scale-95"
+              >
+                <ChevronDown
+                  className={`h-5 w-5 transition-transform ${showByLocation ? "rotate-180" : ""}`}
+                />
+              </button>
+            )}
           </div>
+          {showByLocation && byLocation.length > 0 && (
+            <ul className="divide-y divide-border border-t border-border">
+              {byLocation.map(({ location, quantity }) => (
+                <li
+                  key={location}
+                  className="flex items-center justify-between gap-3 px-4 py-2.5"
+                >
+                  <span
+                    className={`flex min-w-0 items-center gap-2 text-sm ${
+                      location === "Other" ? "italic text-muted" : "text-foreground"
+                    }`}
+                  >
+                    <MapPin className="h-4 w-4 shrink-0 text-muted" />
+                    <span className="truncate">{location}</span>
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">
+                    {quantity}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Counter card */}
