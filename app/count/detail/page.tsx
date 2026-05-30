@@ -43,15 +43,18 @@ function CountItemInner() {
   const locationInputRef = useRef<HTMLInputElement | null>(null);
 
   function applyTemplate(label: string) {
+    const el = locationInputRef.current;
+    if (!el) return;
     haptic("tap");
     const prefix = `${label} `;
+    // iOS only opens the keyboard when focus() is called synchronously inside
+    // the user-gesture — must run before setState / rAF.
+    el.focus();
     setLocation(prefix);
     requestAnimationFrame(() => {
-      const el = locationInputRef.current;
-      if (!el) return;
-      el.focus();
-      const end = prefix.length;
-      el.setSelectionRange(end, end);
+      if (locationInputRef.current === el) {
+        el.setSelectionRange(prefix.length, prefix.length);
+      }
     });
   }
 
