@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/auth/login", "/auth/register"];
+const PUBLIC_PATHS = ["/auth/login", "/auth/register", "/privacy", "/support"];
 const ONBOARDING_PATH = "/welcome";
 
 function isPublicPath(pathname: string): boolean {
@@ -30,7 +30,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     if (isPublic) {
-      // Already signed in — bounce away from login/register.
+      // Login / register bounces signed-in users away. The legal pages
+      // (privacy / support) are linked from the App Store listing, so we
+      // leave them reachable even when signed in.
+      const isLegal = pathname === "/privacy" || pathname === "/support";
+      if (isLegal) return;
       router.replace(user && !user.onboardedAt ? ONBOARDING_PATH : "/");
       return;
     }
