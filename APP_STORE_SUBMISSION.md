@@ -36,25 +36,16 @@ guessing. Status of each App Review checkpoint is listed in the last section.
 
 ## App Privacy (Privacy nutrition label)
 
-Has to match the wording in `/privacy`. Pick these answers exactly:
+Has to match the wording in `/privacy`. AI Scan is disabled in this build,
+so the app makes **no off-device data transmissions of any kind**. Answer:
 
-**Do you or your third-party partners collect data from this app?** → **Yes**
+**Do you or your third-party partners collect data from this app?** → **No**
 
-Then declare these data types as collected and **not linked** to the user
-(because the only off-device transmission is the optional AI Scan and Google
-Gemini does not receive an identifier):
+**SDK list** → none (no analytics, no ads, no networking SDKs).
 
-- **Photos or Videos** — Purpose: **App Functionality**. Linked: **No**.
-  Tracking: **No**. *(AI Scan sends a photo + the catalog metadata.)*
-- *(Nothing else.)*
-
-**Do you or your third-party partners use this app's data to track users?**
-→ **No**.
-
-**SDK list** → none (no analytics, no ads).
-
-> If AI Scan is not enabled in the build you submit, declare **No data
-> collected** instead.
+> When AI Scan is re-enabled in a future release, switch this to "Yes"
+> and declare **Photos or Videos** — Purpose: App Functionality. Linked:
+> No. Tracking: No.
 
 ---
 
@@ -95,11 +86,11 @@ the full flow:
 4. From the Sessions tab → open a session → tap "Export" to produce an
    Excel spreadsheet.
 
-Optional AI Scan: a camera button on the Count screen sends the captured
-photo + your catalog's item metadata to Google Gemini for image
-identification. The feature is hidden unless the build's backing server
-has a Gemini API key configured. The build you are reviewing [does / does
-not] have AI Scan enabled — please confirm and adjust expectations.
+This submission ships with AI Scan **disabled**. The Count screen's
+camera button opens the on-device barcode scanner only — no network
+calls, no third-party services, no off-device data transmission. AI Scan
+(an optional photo-based item identifier powered by Google Gemini) is
+slated for a later release.
 
 No special hardware, login, or external account is required.
 ```
@@ -183,17 +174,24 @@ phone scale, may need padding for the App Store device frame requirements.
 ## Things still to do *before* submitting
 
 - [ ] Bump `MARKETING_VERSION` if you've already tagged 1.0
-- [ ] **Decide AI Scan for v1**. Recommended: ship **off** for the first
-  submission (don't pass `NEXT_PUBLIC_AI_SCAN_ENABLED=1` when running
-  `npm run build:static`). The reviewer sees a clean barcode-only scan
-  button — no risk of a broken AI 503 on their end if the Vercel key
-  isn't set right. Turn AI on in v1.1.
-  - If you do ship with AI on: also set `NEXT_PUBLIC_API_BASE` to your
-    Vercel root at static-build time so the iOS bundle points at it.
+- [x] **AI Scan disabled for v1 submission.** Build with `npm run build:ios`
+  (sets `NEXT_PUBLIC_AI_SCAN_ENABLED=0`), then `npx cap sync ios`. Turn
+  AI on in v1.1 once the listing is live and the Vercel-side Gemini key
+  is verified.
 - [ ] App Store-ready screenshots: `npm run shot:appstore` → uploads in
   `screenshots/appstore/`
 - [ ] Create the listing in App Store Connect using the values above
 - [ ] Archive → Upload → submit to App Review
+
+---
+
+## Build command for this submission
+
+```sh
+npm run build:ios        # NEXT_PUBLIC_AI_SCAN_ENABLED=0 baked in
+npx cap sync ios
+npx cap open ios         # archive in Xcode from here
+```
 
 ---
 

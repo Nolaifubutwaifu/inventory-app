@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:static": "node scripts/build-static.mjs",
+    "build:ios": "NEXT_PUBLIC_AI_SCAN_ENABLED=0 node scripts/build-static.mjs",
     "start": "next start",
     "lint": "eslint",
     "shot:appstore": "node scripts/shot-appstore.mjs"
