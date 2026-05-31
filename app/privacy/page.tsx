@@ -140,10 +140,15 @@ export default function PrivacyPage() {
 
       <Section title="Deleting your data">
         <p>
-          You can delete your account and all associated catalog, session, and
-          count data from inside the app under Account &rarr; Sign out, or by
-          uninstalling the app from your device. Because we do not keep a copy
-          on our servers, that deletion is final and immediate. There is no
+          To delete everything inside the app, open the{" "}
+          <strong>Account</strong> tab, scroll to <strong>Danger zone</strong>,
+          and tap <strong>Delete account</strong>. After two confirmations the
+          app permanently erases your account, your item catalog, every count
+          session, saved locations, and all photos from this device.
+        </p>
+        <p className="mt-3">
+          Uninstalling the app also removes everything, since nothing is kept on
+          our servers. Either path is final and immediate &mdash; there is no
           separate request to make.
         </p>
       </Section>

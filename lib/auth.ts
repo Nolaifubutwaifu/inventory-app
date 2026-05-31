@@ -216,14 +216,12 @@ export async function updateProfile(
 export async function deleteAccount(userId: string): Promise<void> {
   await db.transaction(
     "rw",
-    db.users,
-    db.items,
-    db.sessions,
-    db.entries,
+    [db.users, db.items, db.sessions, db.entries, db.locationTemplates],
     async () => {
       await db.entries.where("userId").equals(userId).delete();
       await db.sessions.where("userId").equals(userId).delete();
       await db.items.where("userId").equals(userId).delete();
+      await db.locationTemplates.where("userId").equals(userId).delete();
       await db.users.delete(userId);
     }
   );

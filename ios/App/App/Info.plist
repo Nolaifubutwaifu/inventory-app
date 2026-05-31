@@ -42,5 +42,7 @@
 	<string>Inventory uses the camera to scan barcodes and identify items against your reference photos during a stocktake.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Inventory uses photos to attach reference images to catalog items.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

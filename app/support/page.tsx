@@ -140,9 +140,13 @@ export default function SupportPage() {
         </Faq>
         <Faq q="How do I delete my account and data?">
           <p>
-            Open the <strong>Account</strong> screen and sign out, then
-            uninstall the app from your iPhone. Because nothing is held on our
-            servers, the deletion is immediate. No separate request is needed.
+            Open the <strong>Account</strong> tab in the bottom bar, scroll to
+            the <strong>Danger zone</strong>, and tap{" "}
+            <strong>Delete account</strong>. You will be asked to confirm twice.
+            This permanently erases your account, every item, every count
+            session, every saved location, and all photos from your device.
+            Because nothing is held on our servers, the deletion is immediate
+            and final &mdash; no separate request is needed.
           </p>
         </Faq>
       </FaqSection>

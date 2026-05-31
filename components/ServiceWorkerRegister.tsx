@@ -11,6 +11,11 @@ export function ServiceWorkerRegister() {
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV === "development") return;
 
+    // Skip when running inside the Capacitor native shell — assets are
+    // already bundled and SW caching would only add coherence problems.
+    const w = window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } };
+    if (w.Capacitor?.isNativePlatform?.()) return;
+
     let cancelled = false;
 
     const handle = (reg: ServiceWorkerRegistration) => {
