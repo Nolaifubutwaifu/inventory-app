@@ -7,7 +7,8 @@
     "build": "next build",
     "build:static": "node scripts/build-static.mjs",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "shot:appstore": "node scripts/shot-appstore.mjs"
   },
   "dependencies": {
     "@capacitor/cli": "^8.3.4",

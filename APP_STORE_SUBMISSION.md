@@ -183,10 +183,15 @@ phone scale, may need padding for the App Store device frame requirements.
 ## Things still to do *before* submitting
 
 - [ ] Bump `MARKETING_VERSION` if you've already tagged 1.0
-- [ ] Confirm AI Scan flag for the build you submit; update review-notes
-  block to match
-- [ ] Capture the six App Store screenshots at 1290×2796 on iPhone 15 Pro
-  Max simulator (or stretched from existing screenshots)
+- [ ] **Decide AI Scan for v1**. Recommended: ship **off** for the first
+  submission (don't pass `NEXT_PUBLIC_AI_SCAN_ENABLED=1` when running
+  `npm run build:static`). The reviewer sees a clean barcode-only scan
+  button — no risk of a broken AI 503 on their end if the Vercel key
+  isn't set right. Turn AI on in v1.1.
+  - If you do ship with AI on: also set `NEXT_PUBLIC_API_BASE` to your
+    Vercel root at static-build time so the iOS bundle points at it.
+- [ ] App Store-ready screenshots: `npm run shot:appstore` → uploads in
+  `screenshots/appstore/`
 - [ ] Create the listing in App Store Connect using the values above
 - [ ] Archive → Upload → submit to App Review
 
