@@ -80,6 +80,13 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+/* Prevent iOS Safari from zooming into inputs (triggers on font-size < 16px). */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(8px);
