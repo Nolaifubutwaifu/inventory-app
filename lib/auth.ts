@@ -18,6 +18,35 @@ const PBKDF2_ITERATIONS = 100_000;
 const HASH_BYTES = 32;
 const AUTH_EVENT = "inventory:auth-change";
 
+// ---------- DEV AUTH BYPASS ----------
+// Temporary: skip the login/register flow so the app can be tested without
+// signing in every time. When true, a local dev user is auto-created and
+// signed in if nobody is logged in. Set to false (or delete this block and
+// the ensureDevUser call in AuthProvider) to restore the normal login flow.
+const DEV_AUTH_BYPASS = true;
+const DEV_USER_EMAIL = "dev@local.test";
+
+export async function ensureDevUser(): Promise<string> {
+  let user = await db.users.where("email").equals(DEV_USER_EMAIL).first();
+  if (!user) {
+    user = {
+      id: newId(),
+      email: DEV_USER_EMAIL,
+      businessName: "Dev Workspace",
+      displayName: "Dev",
+      passwordHash: "",
+      passwordSalt: "",
+      onboardedAt: now(),
+      createdAt: now(),
+    };
+    await db.users.add(user);
+  } else if (!user.onboardedAt) {
+    await db.users.update(user.id, { onboardedAt: now() });
+  }
+  setStoredUserId(user.id);
+  return user.id;
+}
+
 // ---------- Password hashing (Web Crypto PBKDF2-SHA-256) ----------
 
 function toHex(buffer: ArrayBuffer): string {
@@ -244,7 +273,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const id = getStoredUserId();
+    let id = getStoredUserId();
+    if (!id && DEV_AUTH_BYPASS) {
+      // Auto sign-in a local dev user so login can be skipped. Remove the
+      // DEV_AUTH_BYPASS block above to restore the normal login flow.
+      id = await ensureDevUser();
+    }
     setUserId(id);
     if (!id) {
       setUser(undefined);
