@@ -10,8 +10,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { Table } from "dexie";
 import { db, newId, now } from "./db";
 import type { User } from "./types";
+
+type Reassignable = Table<{ id: string; userId: string }, string>;
 
 const CURRENT_USER_KEY = "inventory:currentUserId";
 const PBKDF2_ITERATIONS = 100_000;
@@ -25,26 +28,65 @@ const AUTH_EVENT = "inventory:auth-change";
 // the ensureDevUser call in AuthProvider) to restore the normal login flow.
 const DEV_AUTH_BYPASS = true;
 const DEV_USER_EMAIL = "dev@local.test";
+// FIXED id so every device shares the same account — this id doubles as the
+// cross-device sync account key (see lib/sync/engine.ts). Must be identical
+// on all devices for their data to line up.
+const DEV_USER_ID = "dev-shared-account";
+
+async function reassignUserId(table: Reassignable, fromId: string, toId: string) {
+  const rows = await table.where("userId").equals(fromId).toArray();
+  for (const r of rows) r.userId = toId;
+  if (rows.length) await table.bulkPut(rows);
+}
 
 export async function ensureDevUser(): Promise<string> {
-  let user = await db.users.where("email").equals(DEV_USER_EMAIL).first();
-  if (!user) {
-    user = {
-      id: newId(),
-      email: DEV_USER_EMAIL,
-      businessName: "Dev Workspace",
-      displayName: "Dev",
-      passwordHash: "",
-      passwordSalt: "",
-      onboardedAt: now(),
-      createdAt: now(),
-    };
-    await db.users.add(user);
-  } else if (!user.onboardedAt) {
-    await db.users.update(user.id, { onboardedAt: now() });
+  const fixed = await db.users.get(DEV_USER_ID);
+  if (fixed) {
+    if (!fixed.onboardedAt) await db.users.update(DEV_USER_ID, { onboardedAt: now() });
+    setStoredUserId(DEV_USER_ID);
+    return DEV_USER_ID;
   }
-  setStoredUserId(user.id);
-  return user.id;
+
+  // Migrate a previously-created random-id dev user (and its data) onto the
+  // fixed id so earlier local test data isn't orphaned.
+  const legacy = await db.users.where("email").equals(DEV_USER_EMAIL).first();
+  if (legacy && legacy.id !== DEV_USER_ID) {
+    await db.transaction(
+      "rw",
+      [db.users, db.items, db.sessions, db.entries, db.locationTemplates],
+      async () => {
+        await reassignUserId(db.items as unknown as Reassignable, legacy.id, DEV_USER_ID);
+        await reassignUserId(db.sessions as unknown as Reassignable, legacy.id, DEV_USER_ID);
+        await reassignUserId(db.entries as unknown as Reassignable, legacy.id, DEV_USER_ID);
+        await reassignUserId(
+          db.locationTemplates as unknown as Reassignable,
+          legacy.id,
+          DEV_USER_ID
+        );
+        await db.users.delete(legacy.id);
+        await db.users.add({
+          ...legacy,
+          id: DEV_USER_ID,
+          onboardedAt: legacy.onboardedAt ?? now(),
+        });
+      }
+    );
+    setStoredUserId(DEV_USER_ID);
+    return DEV_USER_ID;
+  }
+
+  await db.users.add({
+    id: DEV_USER_ID,
+    email: DEV_USER_EMAIL,
+    businessName: "Dev Workspace",
+    displayName: "Dev",
+    passwordHash: "",
+    passwordSalt: "",
+    onboardedAt: now(),
+    createdAt: now(),
+  });
+  setStoredUserId(DEV_USER_ID);
+  return DEV_USER_ID;
 }
 
 // ---------- Password hashing (Web Crypto PBKDF2-SHA-256) ----------
