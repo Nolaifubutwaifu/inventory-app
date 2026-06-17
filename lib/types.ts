@@ -24,7 +24,6 @@ export interface Item {
   photoUrl?: string;
   referencePhotos?: string[];
   barcode?: string;
-  matchingLidSku?: string;
   notes?: string;
   createdAt: number;
   updatedAt: number;

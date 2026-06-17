@@ -1,6 +1,6 @@
 // Warehouse Inventory service worker.
 // Bump VERSION to invalidate every cache on next install.
-const VERSION = "v5";
+const VERSION = "v6";
 const STATIC_CACHE = `inv-static-${VERSION}`;
 const PAGES_CACHE = `inv-pages-${VERSION}`;
 const OFFLINE_URL = "/";

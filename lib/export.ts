@@ -41,36 +41,68 @@ function buildSummarySheet(
 ) {
   const sheet = workbook.addWorksheet("Summary");
   sheet.columns = [
+    { header: "Category", key: "category", width: 16 },
+    { header: "Item", key: "name", width: 28 },
     { header: "SKU", key: "sku", width: 16 },
-    { header: "Item", key: "name", width: 32 },
-    { header: "Category", key: "category", width: 14 },
     { header: "Color", key: "color", width: 12 },
     { header: "Size", key: "size", width: 10 },
     { header: "Total Count", key: "total", width: 14 },
-    { header: "Locations", key: "locations", width: 30 },
+    { header: "Locations", key: "locations", width: 34 },
   ];
   sheet.getRow(1).font = { bold: true };
 
-  const totalsByItem = new Map<string, { total: number; locations: Set<string> }>();
+  const totalsByItem = new Map<
+    string,
+    { total: number; locations: Map<string, number> }
+  >();
   for (const e of entries) {
-    const cur = totalsByItem.get(e.itemId) ?? { total: 0, locations: new Set<string>() };
+    const cur =
+      totalsByItem.get(e.itemId) ?? { total: 0, locations: new Map<string, number>() };
     cur.total += e.quantity;
-    if (e.location) cur.locations.add(e.location);
+    if (e.location) {
+      cur.locations.set(e.location, (cur.locations.get(e.location) ?? 0) + e.quantity);
+    }
     totalsByItem.set(e.itemId, cur);
   }
 
-  for (const item of items) {
-    const t = totalsByItem.get(item.id);
-    if (!t || t.total === 0) continue;
-    sheet.addRow({
-      sku: item.sku,
-      name: item.name,
+  // Keep each category's rows together, sorted by item name within the group.
+  const rows = items
+    .map((item) => ({ item, t: totalsByItem.get(item.id) }))
+    .filter((r): r is { item: Item; t: { total: number; locations: Map<string, number> } } =>
+      Boolean(r.t && r.t.total > 0)
+    )
+    .sort((a, b) => {
+      const byCat = a.item.category.localeCompare(b.item.category);
+      return byCat !== 0 ? byCat : a.item.name.localeCompare(b.item.name);
+    });
+
+  // Very light alternating fills so adjacent categories read as distinct blocks.
+  const palette = ["FFEFF4FB", "FFF7F4EC"];
+  let lastCategory: string | null = null;
+  let colorIndex = -1;
+  for (const { item, t } of rows) {
+    if (item.category !== lastCategory) {
+      lastCategory = item.category;
+      colorIndex = (colorIndex + 1) % palette.length;
+    }
+    const locations = Array.from(t.locations.entries())
+      .map(([loc, qty]) => `${loc} (${qty})`)
+      .join(", ");
+    const row = sheet.addRow({
       category: item.category,
+      name: item.name,
+      sku: item.sku,
       color: item.color,
       size: item.size,
       total: t.total,
-      locations: Array.from(t.locations).join(", "),
+      locations,
     });
+    const fill: ExcelJS.Fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: palette[colorIndex] },
+    };
+    for (let c = 1; c <= 7; c++) row.getCell(c).fill = fill;
   }
 
   sheet.addRow([]);

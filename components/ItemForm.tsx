@@ -9,8 +9,8 @@ import { ItemPhoto } from "./ItemPhoto";
 import { ReferencePhotosField } from "./ReferencePhotosField";
 import { BarcodeScanSheet } from "./BarcodeScanSheet";
 import { createItem, deleteItem, updateItem } from "@/lib/repo";
-import { useCategories } from "@/lib/hooks";
-import { fileToDataUrl } from "@/lib/utils";
+import { useCategories, useItems } from "@/lib/hooks";
+import { fileToDataUrl, suggestSkuFromName } from "@/lib/utils";
 import type { Item } from "@/lib/types";
 import { useToast } from "./Toast";
 import { useConfirm } from "./ConfirmDialog";
@@ -30,10 +30,12 @@ export function ItemForm({ item }: ItemFormProps) {
 
   const [name, setName] = useState(item?.name ?? "");
   const [sku, setSku] = useState(item?.sku ?? "");
+  // Once the user edits the SKU (or when editing an existing item) we stop
+  // auto-deriving it from the name.
+  const [skuTouched, setSkuTouched] = useState(isEdit);
   const [category, setCategory] = useState(item?.category ?? "Item");
   const [color, setColor] = useState(item?.color ?? "");
   const [size, setSize] = useState(item?.size ?? "");
-  const [matchingLidSku, setMatchingLidSku] = useState(item?.matchingLidSku ?? "");
   const [notes, setNotes] = useState(item?.notes ?? "");
   const [photoUrl, setPhotoUrl] = useState(item?.photoUrl ?? "");
   const [barcode, setBarcode] = useState(item?.barcode ?? "");
@@ -52,6 +54,25 @@ export function ItemForm({ item }: ItemFormProps) {
     if (trimmed) set.add(trimmed);
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [categories, category]);
+
+  const allItems = useItems();
+  // Existing item names power the name autocomplete (exclude the one being edited).
+  const nameSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of allItems ?? []) {
+      if (item && it.id === item.id) continue;
+      if (it.name) set.add(it.name);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allItems, item]);
+
+  function onNameChange(value: string) {
+    setName(value);
+    // Keep the SKU in step with the name until the user takes it over.
+    if (!skuTouched) {
+      setSku(suggestSkuFromName(value, allItems ?? []));
+    }
+  }
 
   function onCategorySelect(value: string) {
     if (value === NEW_CATEGORY_SENTINEL) {
@@ -88,7 +109,6 @@ export function ItemForm({ item }: ItemFormProps) {
         category: category.trim() || "Item",
         color: color.trim(),
         size: size.trim(),
-        matchingLidSku: matchingLidSku.trim() || undefined,
         notes: notes.trim() || undefined,
         photoUrl: photoUrl || undefined,
         barcode: barcode.trim() || undefined,
@@ -162,14 +182,25 @@ export function ItemForm({ item }: ItemFormProps) {
         label="Item name"
         autoFocus={!isEdit}
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(e) => onNameChange(e.target.value)}
         placeholder="60L Storage Bin"
+        list="item-name-suggestions"
+        autoComplete="off"
         required
       />
+      <datalist id="item-name-suggestions">
+        {nameSuggestions.map((n) => (
+          <option key={n} value={n} />
+        ))}
+      </datalist>
       <Input
         label="SKU"
+        hint="Auto-filled from the name — edit if needed."
         value={sku}
-        onChange={(e) => setSku(e.target.value)}
+        onChange={(e) => {
+          setSku(e.target.value);
+          setSkuTouched(true);
+        }}
         placeholder="BIN-60-BLK"
         autoCapitalize="characters"
         required
@@ -250,14 +281,6 @@ export function ItemForm({ item }: ItemFormProps) {
         </Button>
       </div>
 
-      <Input
-        label="Matching lid SKU"
-        hint="Optional — link a bin to its matching lid."
-        value={matchingLidSku}
-        onChange={(e) => setMatchingLidSku(e.target.value)}
-        placeholder="LID-60-BLK"
-        autoCapitalize="characters"
-      />
       <Textarea
         label="Notes"
         value={notes}
