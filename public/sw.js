@@ -1,6 +1,6 @@
 // Warehouse Inventory service worker.
 // Bump VERSION to invalidate every cache on next install.
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `inv-static-${VERSION}`;
 const PAGES_CACHE = `inv-pages-${VERSION}`;
 const OFFLINE_URL = "/";
@@ -8,6 +8,11 @@ const OFFLINE_URL = "/";
 const STATIC_EXT = /\.(png|jpe?g|svg|webp|ico|webmanifest|woff2?|ttf|css|js|map)$/;
 
 self.addEventListener("install", (event) => {
+  // Activate the new worker immediately instead of waiting for every old tab to
+  // close. A new SW calling skipWaiting() in its own install takes over even if
+  // the previously-installed SW didn't — so stuck browsers auto-upgrade to the
+  // latest build on their next reload, no "Update" tap required.
+  self.skipWaiting();
   event.waitUntil(
     caches.open(PAGES_CACHE).then((cache) =>
       cache.add(OFFLINE_URL).catch(() => {})

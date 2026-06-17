@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { Download, RotateCcw } from "lucide-react";
 
+// Guards against reload loops: a freshly-activated worker fires controllerchange
+// once, we reload once, and ignore any further events.
+let hasReloaded = false;
+
 export function ServiceWorkerRegister() {
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
 
@@ -47,6 +51,8 @@ export function ServiceWorkerRegister() {
       });
 
     const onControllerChange = () => {
+      if (hasReloaded) return;
+      hasReloaded = true;
       window.location.reload();
     };
     navigator.serviceWorker.addEventListener(
