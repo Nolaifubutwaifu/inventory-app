@@ -57,11 +57,24 @@ const unhooks: Array<() => void> = [];
 
 // ---- outbound: local Dexie writes -> Supabase ----
 
+// Broadcast the change over the realtime channel for an instant cross-device
+// update, bypassing the slower DB write-ahead-log -> postgres_changes pipeline.
+// Ephemeral and best-effort: the DB upsert below is the durable source of truth.
+function broadcastChange(row: SyncRow) {
+  if (!channel) return;
+  void channel.send({ type: "broadcast", event: "change", payload: row });
+}
+
 async function pushRow(collection: Collection, entity: SyncEntity, deleted: boolean) {
   const sb = getSupabase();
   if (!sb || !currentAccount) return;
   // Only sync rows that belong to the active (shared) account.
   if ((entity as { userId?: string }).userId !== currentAccount) return;
+
+  const row: SyncRow = { collection, id: entity.id, data: entity, deleted };
+  // Fast path first so peers update immediately, then persist.
+  broadcastChange(row);
+
   const { error } = await sb.from(SYNC_TABLE).upsert(
     {
       collection,
@@ -162,7 +175,17 @@ function subscribeRealtime() {
   const sb = getSupabase();
   if (!sb || !currentAccount) return;
   channel = sb
-    .channel(`sync:${currentAccount}`)
+    .channel(`sync:${currentAccount}`, {
+      // Don't echo our own broadcasts back to us — we already applied locally.
+      config: { broadcast: { self: false } },
+    })
+    // Fast path: peers broadcast their changes for near-instant updates.
+    .on("broadcast", { event: "change" }, ({ payload }) => {
+      const rec = payload as SyncRow | undefined;
+      if (!rec || !rec.collection || !rec.id) return;
+      void applyRemote(rec);
+    })
+    // Durable backstop / catch-up for anything not received via broadcast.
     .on(
       "postgres_changes",
       {
