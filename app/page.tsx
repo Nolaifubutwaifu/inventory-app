@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Boxes,
   Download,
+  FileText,
   ListChecks,
   Plus,
   ScanBarcode,
@@ -14,9 +15,11 @@ import {
   useActiveSession,
   useItems,
   useItemsWithTotals,
+  usePendingInvoiceImports,
   useSessions,
 } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth";
+import { isInvoiceImportEnabled } from "@/lib/invoice/featureFlag";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/Button";
 
@@ -26,6 +29,8 @@ export default function HomePage() {
   const sessions = useSessions();
   const items = useItems();
   const totals = useItemsWithTotals(active?.id);
+  const myobEnabled = isInvoiceImportEnabled();
+  const pendingInvoices = usePendingInvoiceImports();
 
   const itemCount = items?.length ?? 0;
   const sessionCount = sessions?.length ?? 0;
@@ -111,6 +116,27 @@ export default function HomePage() {
         </Link>
       )}
 
+      {myobEnabled && pendingInvoices && pendingInvoices.length > 0 && (
+        <Link
+          href="/imports"
+          className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 transition active:scale-[0.99]"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/20 text-warning">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">
+              {pendingInvoices.length} MYOB invoice
+              {pendingInvoices.length === 1 ? "" : "s"} to review
+            </p>
+            <p className="text-sm text-muted">
+              Turn their line items into counts.
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-muted" />
+        </Link>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <Link
           href="/items"
@@ -155,6 +181,14 @@ export default function HomePage() {
             Export Spreadsheet
           </Button>
         </Link>
+        {myobEnabled && (
+          <Link href="/imports" className="block">
+            <Button variant="secondary" size="lg" block>
+              <FileText className="h-5 w-5" />
+              MYOB Invoices
+            </Button>
+          </Link>
+        )}
       </div>
 
       {sessions && sessions.length > 0 && (

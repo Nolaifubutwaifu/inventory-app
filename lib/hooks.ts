@@ -11,6 +11,7 @@ import {
 import type {
   CountEntry,
   CountSession,
+  InvoiceImport,
   Item,
   ItemWithTotal,
   LocationTemplate,
@@ -110,6 +111,36 @@ export function useLocationTemplates(): LocationTemplate[] | undefined {
       .toArray();
     return rows.sort((a, b) => a.createdAt - b.createdAt);
   }, [userId]);
+}
+
+export function useInvoiceImports(): InvoiceImport[] | undefined {
+  const userId = useCurrentUserId();
+  return useLiveQuery(async () => {
+    if (!userId) return [];
+    const rows = await db.invoiceImports.where("userId").equals(userId).toArray();
+    return rows.sort((a, b) => b.createdAt - a.createdAt);
+  }, [userId]);
+}
+
+export function usePendingInvoiceImports(): InvoiceImport[] | undefined {
+  const userId = useCurrentUserId();
+  return useLiveQuery(async () => {
+    if (!userId) return [];
+    const rows = await db.invoiceImports
+      .where("[userId+status]")
+      .equals([userId, "pending"])
+      .toArray();
+    return rows.sort((a, b) => b.createdAt - a.createdAt);
+  }, [userId]);
+}
+
+export function useInvoiceImport(id: string | undefined): InvoiceImport | undefined {
+  const userId = useCurrentUserId();
+  return useLiveQuery(async () => {
+    if (!id || !userId) return undefined;
+    const row = await db.invoiceImports.get(id);
+    return row && row.userId === userId ? row : undefined;
+  }, [id, userId]);
 }
 
 export function useEntriesForItem(

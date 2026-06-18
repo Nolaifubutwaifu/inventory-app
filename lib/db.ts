@@ -2,6 +2,7 @@ import Dexie, { type Table } from "dexie";
 import type {
   CountEntry,
   CountSession,
+  InvoiceImport,
   Item,
   LocationTemplate,
   User,
@@ -13,6 +14,7 @@ class InventoryDB extends Dexie {
   sessions!: Table<CountSession, string>;
   entries!: Table<CountEntry, string>;
   locationTemplates!: Table<LocationTemplate, string>;
+  invoiceImports!: Table<InvoiceImport, string>;
 
   constructor() {
     super("inventory-app");
@@ -57,6 +59,17 @@ class InventoryDB extends Dexie {
       entries:
         "id, userId, sessionId, itemId, [userId+sessionId], [sessionId+itemId], [userId+sessionId+itemId], createdAt",
       locationTemplates: "id, userId, [userId+createdAt], createdAt",
+    });
+    // v6: invoiceImports table — MYOB invoices parsed by the watcher land here.
+    this.version(6).stores({
+      users: "id, &email, createdAt",
+      items: "id, userId, [userId+name], [userId+sku], [userId+barcode], sku, updatedAt",
+      sessions: "id, userId, [userId+status], [userId+createdAt], createdAt",
+      entries:
+        "id, userId, sessionId, itemId, [userId+sessionId], [sessionId+itemId], [userId+sessionId+itemId], createdAt",
+      locationTemplates: "id, userId, [userId+createdAt], createdAt",
+      invoiceImports:
+        "id, userId, [userId+status], [userId+createdAt], status, createdAt",
     });
   }
 }

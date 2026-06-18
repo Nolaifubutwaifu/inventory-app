@@ -9,6 +9,7 @@ import { db } from "../db";
 import type {
   CountEntry,
   CountSession,
+  InvoiceImport,
   Item,
   LocationTemplate,
 } from "../types";
@@ -18,8 +19,18 @@ import { getSupabase, isSyncConfigured } from "./supabase";
 // the app grows. Each row is `{ collection, id, account_id, data, deleted }`.
 const SYNC_TABLE = "sync_records";
 
-type Collection = "items" | "sessions" | "entries" | "location_templates";
-type SyncEntity = Item | CountSession | CountEntry | LocationTemplate;
+type Collection =
+  | "items"
+  | "sessions"
+  | "entries"
+  | "location_templates"
+  | "invoice_imports";
+type SyncEntity =
+  | Item
+  | CountSession
+  | CountEntry
+  | LocationTemplate
+  | InvoiceImport;
 
 interface Mirror {
   collection: Collection;
@@ -35,6 +46,10 @@ function mirrors(): Mirror[] {
     {
       collection: "location_templates",
       table: db.locationTemplates as unknown as Table<SyncEntity, string>,
+    },
+    {
+      collection: "invoice_imports",
+      table: db.invoiceImports as unknown as Table<SyncEntity, string>,
     },
   ];
 }

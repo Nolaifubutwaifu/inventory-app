@@ -3,6 +3,8 @@ import { db, newId, now } from "./db";
 import type {
   CountEntry,
   CountSession,
+  InvoiceImport,
+  InvoiceImportLine,
   Item,
   ItemWithTotal,
   LocationTemplate,
@@ -65,6 +67,16 @@ export async function findItemByBarcode(barcode: string): Promise<Item | undefin
     .equals([u, trimmed])
     .toArray();
   return rows[0];
+}
+
+// Case-insensitive SKU lookup. The catalog is small and SKUs on invoices vary
+// in case/spacing, so we scan in JS rather than rely on the exact-match index.
+export async function findItemBySku(sku: string): Promise<Item | undefined> {
+  const u = uid();
+  const norm = sku.trim().toLowerCase();
+  if (!norm) return undefined;
+  const rows = await db.items.where("userId").equals(u).toArray();
+  return rows.find((it) => it.sku.trim().toLowerCase() === norm);
 }
 
 export async function deleteItem(id: string): Promise<void> {
@@ -245,6 +257,109 @@ export async function deleteLocationTemplate(id: string): Promise<void> {
   const existing = await db.locationTemplates.get(id);
   if (!existing || existing.userId !== u) return;
   await db.locationTemplates.delete(id);
+}
+
+// ===== Invoice imports (MYOB) =====
+
+export async function listInvoiceImports(): Promise<InvoiceImport[]> {
+  const u = uid();
+  const rows = await db.invoiceImports.where("userId").equals(u).toArray();
+  return rows.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export async function getInvoiceImport(id: string): Promise<InvoiceImport | undefined> {
+  const u = uid();
+  const row = await db.invoiceImports.get(id);
+  if (!row || row.userId !== u) return undefined;
+  return row;
+}
+
+// Pairs each invoice line with the catalog item its SKU resolves to (if any),
+// so the review screen can show matched vs. unmatched at a glance.
+export interface MatchedInvoiceLine {
+  index: number;
+  line: InvoiceImportLine;
+  item?: Item;
+}
+
+export async function matchInvoiceLines(
+  imp: InvoiceImport
+): Promise<MatchedInvoiceLine[]> {
+  const u = uid();
+  const items = await db.items.where("userId").equals(u).toArray();
+  const bySku = new Map<string, Item>();
+  for (const it of items) {
+    const key = it.sku.trim().toLowerCase();
+    if (key && !bySku.has(key)) bySku.set(key, it);
+  }
+  return imp.lines.map((line, index) => ({
+    index,
+    line,
+    item: bySku.get(line.rawSku.trim().toLowerCase()),
+  }));
+}
+
+// Turn every matched, not-yet-imported line into a count entry in `sessionId`.
+// Idempotent: lines already imported are skipped, so re-running is safe. The
+// invoice number rides along as the entry location for traceability in exports.
+export async function importInvoiceToSession(
+  importId: string,
+  sessionId: string
+): Promise<{ imported: number; skipped: number }> {
+  const u = uid();
+  const imp = await db.invoiceImports.get(importId);
+  if (!imp || imp.userId !== u) throw new Error("Invoice not found");
+  const session = await db.sessions.get(sessionId);
+  if (!session || session.userId !== u) throw new Error("Session not found");
+
+  const matched = await matchInvoiceLines(imp);
+  const location = imp.invoiceNumber ? `Invoice ${imp.invoiceNumber}` : "MYOB invoice";
+  const noteBase = `MYOB import · ${imp.filename}`;
+
+  let imported = 0;
+  let skipped = 0;
+  const lines = imp.lines.map((l) => ({ ...l }));
+
+  for (const m of matched) {
+    if (m.line.imported) continue;
+    if (!m.item) {
+      skipped++;
+      continue;
+    }
+    await addEntry({
+      sessionId,
+      itemId: m.item.id,
+      quantity: m.line.quantity,
+      location,
+      notes: noteBase,
+    });
+    lines[m.index].imported = true;
+    imported++;
+  }
+
+  const allImported = lines.every((l) => l.imported);
+  await db.invoiceImports.update(importId, {
+    lines,
+    status: allImported ? "imported" : imp.status,
+    importedSessionId: sessionId,
+    importedAt: now(),
+  });
+
+  return { imported, skipped };
+}
+
+export async function dismissInvoiceImport(id: string): Promise<void> {
+  const u = uid();
+  const existing = await db.invoiceImports.get(id);
+  if (!existing || existing.userId !== u) return;
+  await db.invoiceImports.update(id, { status: "dismissed" });
+}
+
+export async function deleteInvoiceImport(id: string): Promise<void> {
+  const u = uid();
+  const existing = await db.invoiceImports.get(id);
+  if (!existing || existing.userId !== u) return;
+  await db.invoiceImports.delete(id);
 }
 
 // ===== Aggregations =====

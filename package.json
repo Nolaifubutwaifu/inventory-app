@@ -9,6 +9,7 @@
     "build:ios": "NEXT_PUBLIC_AI_SCAN_ENABLED=0 node scripts/build-static.mjs",
     "start": "next start",
     "lint": "eslint",
+    "myob:watch": "node scripts/myob-watch.mjs",
     "shot:appstore": "node scripts/shot-appstore.mjs"
   },
   "dependencies": {

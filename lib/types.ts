@@ -61,3 +61,33 @@ export interface LocationTemplate {
   label: string;
   createdAt: number;
 }
+
+export type InvoiceImportStatus = "pending" | "imported" | "dismissed";
+
+// One line item parsed off a MYOB invoice. `imported` flips to true once the
+// line has been turned into a count entry, so re-running an import never
+// double-counts a line.
+export interface InvoiceImportLine {
+  rawSku: string;
+  description: string;
+  quantity: number;
+  unitPrice?: number;
+  imported?: boolean;
+}
+
+// A MYOB invoice dropped into the watched folder, parsed into structured line
+// items server-side and delivered here through the same sync channel as every
+// other record. The user reviews it in-app and turns its lines into counts.
+export interface InvoiceImport {
+  id: ID;
+  userId: ID;
+  filename: string;
+  invoiceNumber?: string;
+  invoiceDate?: string; // as printed on the invoice (free-form)
+  party?: string; // customer / supplier name on the invoice
+  lines: InvoiceImportLine[];
+  status: InvoiceImportStatus;
+  createdAt: number;
+  importedAt?: number;
+  importedSessionId?: ID;
+}
