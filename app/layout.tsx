@@ -7,6 +7,7 @@ import { Providers } from "@/components/Providers";
 import { SeedOnMount } from "@/components/SeedOnMount";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { PersistentStorageRequest } from "@/components/PersistentStorageRequest";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -71,6 +72,7 @@ export default function RootLayout({
         <Providers>
           <SeedOnMount />
           <ServiceWorkerRegister />
+          <PersistentStorageRequest />
           <OfflineIndicator />
           <AppShell>{children}</AppShell>
         </Providers>
