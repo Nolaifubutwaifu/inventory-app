@@ -71,7 +71,14 @@ async function pushRow(collection: Collection, entity: SyncEntity, deleted: bool
   // Only sync rows that belong to the active (shared) account.
   if ((entity as { userId?: string }).userId !== currentAccount) return;
 
-  const row: SyncRow = { collection, id: entity.id, data: entity, deleted };
+  // A tombstone only needs the id — peers just delete the row locally.
+  // Keeping the full snapshot (photos included) would make every device
+  // re-download dead data on every initial sync, forever.
+  const payload = deleted
+    ? ({ id: entity.id, userId: currentAccount } as SyncEntity)
+    : entity;
+
+  const row: SyncRow = { collection, id: entity.id, data: payload, deleted };
   // Fast path first so peers update immediately, then persist.
   broadcastChange(row);
 
@@ -80,7 +87,7 @@ async function pushRow(collection: Collection, entity: SyncEntity, deleted: bool
       collection,
       id: entity.id,
       account_id: currentAccount,
-      data: entity,
+      data: payload,
       deleted,
       updated_at: Date.now(),
     },
@@ -139,31 +146,99 @@ async function applyRemote(row: SyncRow) {
   }
 }
 
+// Per-account high-water mark of the newest server row this device has
+// applied. Lets the next initial sync pull only what changed since, instead
+// of re-downloading the whole account on every app open.
+const CHECKPOINT_PREFIX = "inventory:syncCheckpoint:";
+// updated_at is stamped by whichever device wrote the row, so clocks can
+// disagree. Re-pulling a small overlap window is cheap; missing a row is not.
+const CHECKPOINT_SLACK_MS = 5 * 60 * 1000;
+
+function getCheckpoint(account: string): number {
+  try {
+    const raw = window.localStorage.getItem(CHECKPOINT_PREFIX + account);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function setCheckpoint(account: string, ts: number) {
+  try {
+    window.localStorage.setItem(CHECKPOINT_PREFIX + account, String(ts));
+  } catch {
+    // ignore — storage unavailable
+  }
+}
+
 async function initialSync() {
   const sb = getSupabase();
   if (!sb || !currentAccount) return;
+  const account = currentAccount;
 
-  const { data, error } = await sb
+  // Light pass: ids + timestamps only (no payloads). Tells us what the server
+  // has — both to find rows worth pulling and to seed-push local rows the
+  // server has never seen — for a few bytes per row.
+  const { data: index, error: indexError } = await sb
     .from(SYNC_TABLE)
-    .select("collection,id,data,deleted")
-    .eq("account_id", currentAccount);
-  if (error) {
-    console.warn("[sync] initial pull failed:", error.message);
+    .select("collection,id,updated_at")
+    .eq("account_id", account);
+  if (indexError) {
+    console.warn("[sync] initial pull failed:", indexError.message);
     return;
   }
 
   const seen = new Set<string>();
-  for (const row of (data ?? []) as SyncRow[]) {
+  let newest = 0;
+  for (const row of (index ?? []) as Array<{
+    collection: Collection;
+    id: string;
+    updated_at: number;
+  }>) {
     seen.add(`${row.collection}:${row.id}`);
-    await applyRemote(row);
+    if (row.updated_at > newest) newest = row.updated_at;
   }
 
+  // Payload pass: only rows changed since this device last synced.
+  const since = Math.max(0, getCheckpoint(account) - CHECKPOINT_SLACK_MS);
+  let changed: SyncRow[] = [];
+  if (newest > since) {
+    const { data, error } = await sb
+      .from(SYNC_TABLE)
+      .select("collection,id,data,deleted")
+      .eq("account_id", account)
+      .gt("updated_at", since);
+    if (error) {
+      console.warn("[sync] initial pull failed:", error.message);
+      return;
+    }
+    changed = (data ?? []) as SyncRow[];
+  }
+
+  // Apply per collection in bulk — one transaction instead of one await per row.
+  for (const { collection, table } of mirrors()) {
+    const rows = changed.filter((r) => r.collection === collection);
+    if (rows.length === 0) continue;
+    const puts = rows.filter((r) => !r.deleted).map((r) => r.data);
+    const dels = rows.filter((r) => r.deleted).map((r) => r.id);
+    applyingRemote = true;
+    try {
+      if (puts.length) await table.bulkPut(puts);
+      if (dels.length) await table.bulkDelete(dels);
+    } finally {
+      applyingRemote = false;
+    }
+  }
+
+  if (newest > 0) setCheckpoint(account, newest);
+
   // Seed the server with any local rows it hasn't seen yet (e.g. data created
-  // on this device before sync was configured).
+  // on this device before sync was configured, or whose push never landed).
   for (const { collection, table } of mirrors()) {
     const rows = await table.toArray();
     for (const row of rows) {
-      if ((row as { userId?: string }).userId !== currentAccount) continue;
+      if ((row as { userId?: string }).userId !== account) continue;
       if (!seen.has(`${collection}:${row.id}`)) {
         await pushRow(collection, row, false);
       }

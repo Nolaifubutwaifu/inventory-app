@@ -10,7 +10,8 @@ import { ReferencePhotosField } from "./ReferencePhotosField";
 import { BarcodeScanSheet } from "./BarcodeScanSheet";
 import { createItem, deleteItem, updateItem } from "@/lib/repo";
 import { useCategories, useItems } from "@/lib/hooks";
-import { fileToDataUrl, suggestSkuFromName } from "@/lib/utils";
+import { suggestSkuFromName } from "@/lib/utils";
+import { fileToCompressedDataUrl } from "@/lib/scan/image";
 import type { Item } from "@/lib/types";
 import { useToast } from "./Toast";
 import { useConfirm } from "./ConfirmDialog";
@@ -94,7 +95,9 @@ export function ItemForm({ item }: ItemFormProps) {
   async function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const dataUrl = await fileToDataUrl(file);
+    // Compress like reference photos do — a raw camera shot is several MB of
+    // base64 that every synced device would have to download.
+    const dataUrl = await fileToCompressedDataUrl(file, { maxEdge: 1280, quality: 0.8 });
     setPhotoUrl(dataUrl);
   }
 

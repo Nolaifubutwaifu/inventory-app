@@ -10,9 +10,13 @@ exactly as before — fully local, no sync.
 - One generic table, `sync_records`, mirrors all four local tables. Each row is
   `{ collection, id, account_id, data (jsonb), deleted, updated_at }`.
 - **Outbound:** Dexie write hooks push every local create/update/delete to
-  Supabase ([lib/sync/engine.ts](lib/sync/engine.ts)).
+  Supabase ([lib/sync/engine.ts](lib/sync/engine.ts)). Deletes upload only a
+  minimal tombstone (id, no payload) so dead data never bloats the table.
 - **Inbound:** a Supabase realtime subscription writes remote changes back into
   IndexedDB, and the app's `useLiveQuery` views re-render automatically.
+- **Catch-up on load:** each device remembers the newest server change it has
+  applied and pulls only rows changed since (plus a lightweight id index), so
+  reopening the app stays fast no matter how large the catalog grows.
 - The account key is the signed-in user id. While the dev auth bypass is on,
   that's the fixed id `dev-shared-account`, so **all devices share one account**
   — which is exactly the testing setup you asked for.
