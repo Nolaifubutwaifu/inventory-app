@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Boxes, CircleCheck, Plus, Search } from "lucide-react";
+import { Boxes, CircleCheck, Grid3x3, Plus, Search } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { ItemPhoto } from "@/components/ItemPhoto";
@@ -70,6 +70,13 @@ export default function CountPage() {
       <PageHeader
         title="Count"
         subtitle={`${session.name} · ${formatDate(session.createdAt)}`}
+        right={
+          <Link href="/count/matrix">
+            <Button size="sm" variant="secondary">
+              <Grid3x3 className="h-4 w-4" /> Matrix
+            </Button>
+          </Link>
+        }
       />
       <div className="space-y-3 p-4">
         <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
