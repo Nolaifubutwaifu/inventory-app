@@ -9,7 +9,7 @@ import { CountKeypad } from "@/components/CountKeypad";
 import { useToast } from "@/components/Toast";
 import { useActiveSession, useEntriesForSession, useItems } from "@/lib/hooks";
 import { addEntry } from "@/lib/repo";
-import { buildMatrixGroups, groupOrder, swatchFor, type MatrixGroup } from "@/lib/matrix";
+import { buildMatrixGroups, groupOrder, inkFor, swatchFor, type MatrixGroup } from "@/lib/matrix";
 import { haptic } from "@/lib/haptic";
 import { cn, formatDate } from "@/lib/utils";
 import type { Item } from "@/lib/types";
@@ -394,13 +394,36 @@ function MatrixTable({
                             onClick={() => onSelect(it.id)}
                             aria-label={`${it.name}: ${t ? t.total : "not counted"}`}
                             aria-pressed={isActive}
+                            // Boxes take their row's colour so a colour can be
+                            // followed across the sheet; the selected box keeps
+                            // it and gets a heavy outline instead.
+                            style={
+                              swatch
+                                ? {
+                                    background: swatch,
+                                    color: inkFor(swatch),
+                                    // White inner + dark outer ring shows on every row colour.
+                                    ...(isActive && {
+                                      boxShadow: "inset 0 0 0 3px #ffffff, 0 0 0 3px #0f172a",
+                                    }),
+                                  }
+                                : undefined
+                            }
                             className={cn(
                               "flex h-12 w-full min-w-[3.25rem] scroll-ml-40 scroll-mt-20 items-center justify-center text-lg font-semibold tabular-nums",
-                              t ? "bg-primary-soft/60 text-foreground" : "bg-surface text-muted/40",
-                              isActive && "relative z-[5] bg-primary text-primary-fg ring-2 ring-primary ring-offset-2 ring-offset-surface"
+                              !swatch &&
+                                (t ? "bg-primary-soft/60 text-foreground" : "bg-surface text-muted/40"),
+                              isActive &&
+                                (swatch
+                                  ? "relative z-[5]"
+                                  : "relative z-[5] bg-primary text-primary-fg ring-2 ring-primary ring-offset-2 ring-offset-surface")
                             )}
                           >
-                            {t ? t.total : "·"}
+                            {t ? (
+                              t.total
+                            ) : (
+                              <span className={swatch ? "opacity-60" : undefined}>·</span>
+                            )}
                           </button>
                         </td>
                       );

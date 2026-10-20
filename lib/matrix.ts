@@ -204,7 +204,19 @@ export function groupOrder(group: MatrixGroup): Item[] {
   return out;
 }
 
-// Rough swatch colour for the row label, keyed off the colour name.
+// Text colour that stays readable on a swatch: near-black on light colours
+// (yellow, lime, white), white on dark ones.
+export function inkFor(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance > 0.3 ? "#0f172a" : "#ffffff";
+}
+
+// Rough swatch colour for each row, keyed off the colour name.
 export function swatchFor(color: string): string | undefined {
   const c = color.toLowerCase();
   if (c.includes("black")) return "#111827";
@@ -221,8 +233,12 @@ export function swatchFor(color: string): string | undefined {
   if (c.includes("dark green")) return "#14532d";
   if (c.includes("grass") || c.includes("shadow")) return "#3f7d3a";
   if (c.includes("green")) return "#16a34a";
+  // Variants get their own shade so neighbouring rows stay distinguishable.
+  if (c.includes("ugly purple")) return "#a855f7";
   if (c.includes("purple")) return "#7e22ce";
   if (c.includes("orange")) return "#f97316";
+  if (c.includes("ugly red")) return "#991b1b";
+  if (c.includes("aj bush")) return "#f05252";
   if (c.includes("red")) return "#dc2626";
   if (c.includes("yellow")) return "#facc15";
   if (c.includes("brown")) return "#78350f";
