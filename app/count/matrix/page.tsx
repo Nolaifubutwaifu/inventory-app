@@ -515,14 +515,22 @@ function MatrixTable({
               </tr>
             </thead>
             <tbody>
-              {group.loose.map((it) => {
+              {group.loose.map((it, i) => {
                 const t = tallies.get(it.id);
                 const isActive = it.id === activeId;
                 return (
                   <tr
                     key={it.id}
                     onClick={() => onSelect(it.id)}
-                    className={cn("cursor-pointer", isActive ? "bg-primary text-primary-fg" : "bg-surface")}
+                    className={cn(
+                      "cursor-pointer",
+                      // Light zebra tint so each part row is easy to follow across.
+                      isActive
+                        ? "bg-primary text-primary-fg"
+                        : i % 2 === 0
+                          ? "bg-primary-soft/70"
+                          : "bg-primary-soft"
+                    )}
                   >
                     <td className="h-12 border-b border-border px-4 font-medium">{it.name}</td>
                     <td className="h-12 border-b border-l border-border p-0">
@@ -579,7 +587,8 @@ function BlankPartRow({
   }
 
   return (
-    <tr className="bg-surface">
+    // Warm tint marks the rows that are still free to name.
+    <tr className="bg-warning/20">
       <td className="h-12 border-b border-border p-0">
         <input
           value={name}
@@ -595,10 +604,10 @@ function BlankPartRow({
           placeholder="Tap to name a part…"
           enterKeyHint="done"
           autoComplete="off"
-          className="h-12 w-full bg-transparent px-4 font-medium outline-none placeholder:font-normal placeholder:text-muted/60 focus:bg-primary-soft/40"
+          className="h-12 w-full bg-transparent px-4 font-medium outline-none placeholder:font-normal placeholder:text-warning focus:bg-surface"
         />
       </td>
-      <td className="h-12 border-b border-l border-border text-center text-muted/30">—</td>
+      <td className="h-12 border-b border-l border-border text-center text-warning/60">—</td>
     </tr>
   );
 }
