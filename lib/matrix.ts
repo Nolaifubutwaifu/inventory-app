@@ -7,6 +7,9 @@ import type { Item } from "./types";
 
 export type Part = "Bin" | "Lid" | "";
 
+// Category (and sheet name) for wheels, axles and other loose parts.
+export const SPARE_PARTS = "Spare Parts";
+
 export interface MatrixColumn {
   key: string;
   size: string;
@@ -173,8 +176,16 @@ export function buildMatrixGroups(items: Item[]): MatrixGroup[] {
       compareColors(a.color, b.color)
     );
 
-    loose.sort((a, b) => a.name.localeCompare(b.name));
+    // A pure list (spare parts) keeps the order items were added in, so new
+    // rows land at the bottom; leftovers under a grid sort A-Z.
+    if (rows.length === 0) loose.sort((a, b) => a.createdAt - b.createdAt);
+    else loose.sort((a, b) => a.name.localeCompare(b.name));
     groups.push({ name, sizes, columns, rows, loose });
+  }
+
+  // The spare parts sheet is always offered so parts can be added from it.
+  if (!groups.some((g) => g.name === SPARE_PARTS)) {
+    groups.push({ name: SPARE_PARTS, sizes: [], columns: [], rows: [], loose: [] });
   }
 
   // Families with a real grid first (biggest first, matching the sheet

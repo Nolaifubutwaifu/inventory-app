@@ -8,10 +8,17 @@ import { Button } from "@/components/Button";
 import { CountKeypad } from "@/components/CountKeypad";
 import { useToast } from "@/components/Toast";
 import { useActiveSession, useEntriesForSession, useItems } from "@/lib/hooks";
-import { addEntry } from "@/lib/repo";
-import { buildMatrixGroups, groupOrder, inkFor, swatchFor, type MatrixGroup } from "@/lib/matrix";
+import { addEntry, createItem } from "@/lib/repo";
+import {
+  buildMatrixGroups,
+  groupOrder,
+  inkFor,
+  SPARE_PARTS,
+  swatchFor,
+  type MatrixGroup,
+} from "@/lib/matrix";
 import { haptic } from "@/lib/haptic";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, suggestSkuFromName } from "@/lib/utils";
 import type { Item } from "@/lib/types";
 
 const GROUP_KEY = "inventory:matrixGroup";
@@ -130,6 +137,28 @@ export default function MatrixCountPage() {
     toast.show(`${item.name}: total set to ${target}`, "success");
   }
 
+  async function onCreatePart(name: string, select: boolean) {
+    const existing = items?.find(
+      (it) => it.category === SPARE_PARTS && it.name.toLowerCase() === name.toLowerCase()
+    );
+    if (existing) {
+      toast.show(`${existing.name} is already on the list`);
+      if (select) setActiveId(existing.id);
+      return;
+    }
+    const item = await createItem({
+      name,
+      sku: suggestSkuFromName(name, items ?? []),
+      category: SPARE_PARTS,
+      color: "",
+      size: name.match(/\b\d+L\b/i)?.[0].toUpperCase() ?? "",
+      notes: "",
+    });
+    haptic("success");
+    toast.show(`Added ${item.name}`, "success");
+    if (select) setActiveId(item.id);
+  }
+
   if (session === undefined && items === undefined) {
     return <PageHeader title="Matrix count" back="/count" />;
   }
@@ -236,7 +265,7 @@ export default function MatrixCountPage() {
         </label>
       </div>
 
-      {groups.length === 0 ? (
+      {items?.length === 0 ? (
         <div className="mx-auto w-full max-w-xl p-4">
           <div className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center">
             <p className="font-semibold">No items in the catalog</p>
@@ -265,6 +294,7 @@ export default function MatrixCountPage() {
                   haptic("tap");
                   setActiveId((cur) => (cur === id ? null : id));
                 }}
+                onCreatePart={group.name === SPARE_PARTS ? onCreatePart : undefined}
               />
             )}
           </div>
@@ -289,11 +319,14 @@ function MatrixTable({
   tallies,
   activeId,
   onSelect,
+  onCreatePart,
 }: {
   group: MatrixGroup;
   tallies: Map<string, Tally>;
   activeId: string | null;
   onSelect: (id: string) => void;
+  // Set on the spare parts sheet: adds blank rows that create new parts.
+  onCreatePart?: (name: string, select: boolean) => Promise<void>;
 }) {
   const hasGrid = group.rows.length > 0;
   const showParts = group.columns.some((c) => c.part !== "") && group.columns.length > group.sizes.length;
@@ -462,47 +495,110 @@ function MatrixTable({
         </table>
       )}
 
-      {group.loose.length > 0 && (
-        <section className="max-w-3xl">
+      {(group.loose.length > 0 || !hasGrid) && (
+        <section className="max-w-xl">
           {hasGrid && (
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
               Other items
             </h2>
           )}
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {group.loose.map((it) => {
-              const t = tallies.get(it.id);
-              const isActive = it.id === activeId;
-              return (
-                <li key={it.id}>
-                  <button
-                    type="button"
-                    data-item-id={it.id}
+          {/* Two-column list, like the paper spare parts sheet. */}
+          <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-xl border border-border text-sm">
+            <thead>
+              <tr>
+                <th className="h-9 border-b border-border bg-surface-2 px-4 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                  Item
+                </th>
+                <th className="h-9 w-28 border-b border-l border-border bg-surface-2 text-center text-xs font-semibold uppercase tracking-wide text-muted">
+                  Count
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.loose.map((it) => {
+                const t = tallies.get(it.id);
+                const isActive = it.id === activeId;
+                return (
+                  <tr
+                    key={it.id}
                     onClick={() => onSelect(it.id)}
-                    aria-pressed={isActive}
-                    className={cn(
-                      "flex h-14 w-full scroll-mt-4 items-center justify-between gap-3 rounded-xl border px-4 text-left",
-                      isActive
-                        ? "border-primary bg-primary text-primary-fg"
-                        : "border-border bg-surface"
-                    )}
+                    className={cn("cursor-pointer", isActive ? "bg-primary text-primary-fg" : "bg-surface")}
                   >
-                    <span className="min-w-0 truncate font-medium">{it.name}</span>
-                    <span
-                      className={cn(
-                        "shrink-0 text-xl font-bold tabular-nums",
-                        !t && !isActive && "text-muted/40"
-                      )}
-                    >
-                      {t ? t.total : "·"}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                    <td className="h-12 border-b border-border px-4 font-medium">{it.name}</td>
+                    <td className="h-12 border-b border-l border-border p-0">
+                      <button
+                        type="button"
+                        data-item-id={it.id}
+                        aria-label={`${it.name}: ${t ? t.total : "not counted"}`}
+                        aria-pressed={isActive}
+                        className={cn(
+                          "flex h-12 w-full scroll-mt-12 items-center justify-center text-lg font-semibold tabular-nums",
+                          !t && !isActive && "text-muted/40"
+                        )}
+                      >
+                        {t ? t.total : "·"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {onCreatePart &&
+                Array.from({ length: BLANK_PART_ROWS }, (_, i) => (
+                  <BlankPartRow key={i} onCreate={onCreatePart} />
+                ))}
+            </tbody>
+          </table>
         </section>
       )}
     </div>
+  );
+}
+
+const BLANK_PART_ROWS = 3;
+
+// An empty row: tap the name cell, type a part name, and it becomes a real
+// catalog item (Enter also opens the keypad on it).
+function BlankPartRow({
+  onCreate,
+}: {
+  onCreate: (name: string, select: boolean) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const busy = useRef(false);
+
+  async function commit(select: boolean) {
+    const trimmed = name.trim();
+    if (!trimmed || busy.current) return;
+    busy.current = true;
+    try {
+      await onCreate(trimmed, select);
+      setName("");
+    } finally {
+      busy.current = false;
+    }
+  }
+
+  return (
+    <tr className="bg-surface">
+      <td className="h-12 border-b border-border p-0">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => void commit(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void commit(true);
+              e.currentTarget.blur();
+            }
+          }}
+          placeholder="Tap to name a part…"
+          enterKeyHint="done"
+          autoComplete="off"
+          className="h-12 w-full bg-transparent px-4 font-medium outline-none placeholder:font-normal placeholder:text-muted/60 focus:bg-primary-soft/40"
+        />
+      </td>
+      <td className="h-12 border-b border-l border-border text-center text-muted/30">—</td>
+    </tr>
   );
 }
