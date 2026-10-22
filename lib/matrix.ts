@@ -39,26 +39,17 @@ export interface MatrixGroup {
 // Row order used on the printed count sheets; anything else sorts after,
 // alphabetically.
 const COLOR_ORDER = [
-  "Grass (Shadow) Green",
-  "Grass Green",
-  "Shadow Green",
   "Dark Green",
-  "Council Green",
-  "Mud Green",
+  "Shadow Green",
   "Lime Green",
   "Dark Grey",
-  "Light Grey",
   "Royal Blue",
   "Light Blue",
-  "Sky Blue",
   "Black",
   "White",
   "Purple",
-  "Ugly Purple",
   "Orange",
   "Red",
-  "Ugly Red",
-  "Red (AJ Bush)",
   "Yellow",
 ];
 
@@ -241,8 +232,10 @@ export function swatchFor(color: string): string | undefined {
   if (c.includes("lime")) return "#84cc16";
   if (c.includes("mud")) return "#6b7a3a";
   if (c.includes("council")) return "#2f6b3a";
-  if (c.includes("dark green")) return "#14532d";
-  if (c.includes("grass") || c.includes("shadow")) return "#3f7d3a";
+  // Dark Green is the brighter of the two (formerly "Grass Green"); Shadow
+  // Green is the deep one (formerly "Dark Green").
+  if (c.includes("shadow")) return "#14532d";
+  if (c.includes("dark green") || c.includes("grass")) return "#3f7d3a";
   if (c.includes("green")) return "#16a34a";
   // Variants get their own shade so neighbouring rows stay distinguishable.
   if (c.includes("ugly purple")) return "#a855f7";
