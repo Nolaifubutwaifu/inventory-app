@@ -316,9 +316,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     let id = getStoredUserId();
-    if (!id && DEV_AUTH_BYPASS) {
-      // Auto sign-in a local dev user so login can be skipped. Remove the
-      // DEV_AUTH_BYPASS block above to restore the normal login flow.
+    if (DEV_AUTH_BYPASS && id !== DEV_USER_ID) {
+      // Auto sign-in the shared dev user so login can be skipped. This also
+      // pulls back a device that signed in or registered with an email: that
+      // gives it a private account id, which syncs to its own empty catalog
+      // instead of the shared one. Remove the DEV_AUTH_BYPASS block above to
+      // restore the normal login flow.
       id = await ensureDevUser();
     }
     setUserId(id);
