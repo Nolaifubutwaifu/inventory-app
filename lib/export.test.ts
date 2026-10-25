@@ -144,7 +144,10 @@ function summaryTable(workbook: ExcelJS.Workbook) {
   return { records, grand };
 }
 
-function detailGrandTotal(workbook: ExcelJS.Workbook): ExcelJS.CellValue {
+function detailGrandTotal(
+  workbook: ExcelJS.Workbook,
+  expectedRows: number
+): ExcelJS.CellValue {
   const sheet = workbook.getWorksheet("Detailed Counts");
   assert.ok(sheet, "Detailed Counts sheet missing");
   let grand: ExcelJS.CellValue = null;
@@ -155,7 +158,7 @@ function detailGrandTotal(workbook: ExcelJS.Workbook): ExcelJS.CellValue {
       quantityRows += 1;
     }
   });
-  assert.equal(quantityRows, entries.length);
+  assert.equal(quantityRows, expectedRows);
   return grand;
 }
 
@@ -168,12 +171,15 @@ describe("stocktake summary export", () => {
     assert.equal(bySku.get("660L-BIN-ROYAL-BLUE")?.total, -60);
     assert.equal(bySku.get("660L-BIN-LIME-GREEN")?.total, -8);
     assert.equal(bySku.get("120L-VERMIN-LID-RED")?.total, -37);
-    assert.equal(bySku.get("80L-LID-RED")?.total, 0);
+    // The 80L red lid is the same lid as 120L. Its net of 0 still shows,
+    // on the 120L SKU, and the vermin lid stays on its own line.
+    assert.equal(bySku.has("80L-LID-RED"), false);
+    assert.equal(bySku.get("120L-LID-RED")?.total, 0);
     for (const sku of [
       "660L-BIN-ROYAL-BLUE",
       "660L-BIN-LIME-GREEN",
       "120L-VERMIN-LID-RED",
-      "80L-LID-RED",
+      "120L-LID-RED",
     ]) {
       assert.equal(typeof bySku.get(sku)?.total, "number", sku);
     }
@@ -201,7 +207,7 @@ describe("stocktake summary export", () => {
     const columnSum = records.reduce((sum, r) => sum + Number(r.total), 0);
     assert.equal(columnSum, -60 + -8 + -37 + 0 + 54 + 118);
     assert.equal(grand, columnSum);
-    assert.equal(detailGrandTotal(workbook), columnSum);
+    assert.equal(detailGrandTotal(workbook, entries.length), columnSum);
   });
 
   it("keeps negative quantities on the detailed counts sheet", () => {
@@ -214,5 +220,180 @@ describe("stocktake summary export", () => {
       if (sku === "660L-BIN-ROYAL-BLUE" && typeof qty === "number") quantities.push(qty);
     });
     assert.deepEqual(quantities, [-60]);
+  });
+
+  it("reports the 80L plain lid counts on the 120L lid line", () => {
+    const sheet = workbook.getWorksheet("Detailed Counts");
+    assert.ok(sheet);
+    const skus: string[] = [];
+    sheet.eachRow((row) => {
+      const sku = row.getCell(3).value;
+      const qty = row.getCell(7).value;
+      if (typeof qty !== "number" || row.getCell(1).value === "Grand total") return;
+      if (qty === 4 || qty === -4) skus.push(String(sku));
+    });
+    assert.deepEqual(skus, ["120L-LID-RED", "120L-LID-RED"]);
+  });
+});
+
+describe("80L and 120L plain lids export as one line", () => {
+  const mergedItems: Item[] = [
+    item({
+      id: "lid120-red",
+      name: "120L Lid Red",
+      sku: "120L-LID-RED",
+      category: "Lid",
+      color: "Red",
+      size: "120L",
+    }),
+    item({
+      id: "lid80-red",
+      name: "80L Lid Red",
+      sku: "80L-LID-RED",
+      category: "Lid",
+      color: "Red",
+      size: "80L",
+    }),
+    item({
+      id: "lid120-yellow",
+      name: "120L Lid Yellow",
+      sku: "120L-LID-YELLOW",
+      category: "Lid",
+      color: "Yellow",
+      size: "120L",
+    }),
+    item({
+      id: "lid80-yellow",
+      name: "80L Lid Yellow",
+      sku: "80L-LID-YELLOW",
+      category: "Lid",
+      color: "Yellow",
+      size: "80L",
+    }),
+    item({
+      id: "lid120-black",
+      name: "120L Lid Black",
+      sku: "120L-LID-BLACK",
+      category: "Lid",
+      color: "Black",
+      size: "120L",
+    }),
+    item({
+      id: "lid80-black",
+      name: "80L Lid Black",
+      sku: "80L-LID-BLACK",
+      category: "Lid",
+      color: "Black",
+      size: "80L",
+    }),
+    item({
+      id: "vermin-red",
+      name: "120L Vermin Lid Red",
+      sku: "120L-VERMIN-LID-RED",
+      category: "Vermin Lid",
+      color: "Red",
+      size: "120L",
+    }),
+    item({
+      id: "bin80-red",
+      name: "80L Bin Red",
+      sku: "80L-BIN-RED",
+      category: "Bin",
+      color: "Red",
+      size: "80L",
+    }),
+    item({
+      id: "bin120-red",
+      name: "120L Bin Red",
+      sku: "120L-BIN-RED",
+      category: "Bin",
+      color: "Red",
+      size: "120L",
+    }),
+    item({
+      id: "pedal",
+      name: "80L Pedal Bin Lid Red",
+      sku: "80L-LID-RED",
+      category: "Pedal Bin Lid",
+      color: "Red",
+      size: "80L",
+    }),
+    item({
+      id: "light-blue-lid",
+      name: "240L Lid Light Blue",
+      sku: "240L-LID-LIGHT-BLUE",
+      category: "Lid",
+      color: "Light Blue",
+      size: "240L",
+    }),
+    item({
+      id: "untouched-bin",
+      name: "100L Bin Black",
+      sku: "100L-BIN-BLACK",
+      category: "Bin",
+      color: "Black",
+      size: "100L",
+    }),
+  ];
+
+  const mergedEntries: CountEntry[] = [
+    entry("lid120-red", 98, "Bay", 1),
+    entry("lid80-red", 7, "Shelf", 2),
+    entry("lid80-yellow", 4, "Shelf", 3),
+    entry("lid80-yellow", -4, "Shelf", 4),
+    entry("lid120-black", -5, "Backorder", 5),
+    entry("lid80-black", -2, "Backorder", 6),
+    entry("vermin-red", -37, "", 7),
+    entry("bin80-red", 6, "Aisle", 8),
+    entry("bin120-red", -3, "Aisle", 9),
+    entry("pedal", 11, "Aisle", 10),
+    entry("light-blue-lid", 118, "", 11),
+  ];
+
+  const workbook = buildSessionWorkbook(session, mergedItems, mergedEntries);
+  const { records, grand } = summaryTable(workbook);
+  const bySku = new Map(records.map((r) => [r.sku, r]));
+  const rawSum = mergedEntries.reduce((sum, e) => sum + e.quantity, 0);
+
+  it("folds each plain lid colour onto the 120L SKU and sums the counts", () => {
+    assert.equal(bySku.get("120L-LID-RED")?.total, 105);
+    assert.equal(bySku.get("120L-LID-RED")?.locations, "Bay (98), Shelf (7)");
+    assert.equal(bySku.get("120L-LID-YELLOW")?.total, 0);
+    assert.equal(typeof bySku.get("120L-LID-YELLOW")?.total, "number");
+    assert.equal(bySku.get("120L-LID-BLACK")?.total, -7);
+    assert.equal(bySku.get("120L-LID-BLACK")?.locations, "Backorder (-7)");
+    assert.equal(bySku.has("80L-LID-YELLOW"), false);
+    assert.equal(bySku.has("80L-LID-BLACK"), false);
+    const redRows = records.filter((r) => r.sku === "120L-LID-RED");
+    assert.equal(redRows.length, 1);
+  });
+
+  it("leaves vermin lids, pedal lids, and bin bodies on their own lines", () => {
+    assert.equal(bySku.get("120L-VERMIN-LID-RED")?.total, -37);
+    assert.equal(bySku.get("80L-BIN-RED")?.total, 6);
+    assert.equal(bySku.get("120L-BIN-RED")?.total, -3);
+    assert.equal(typeof bySku.get("120L-BIN-RED")?.total, "number");
+    assert.equal(bySku.get("80L-LID-RED")?.total, 11);
+    assert.equal(bySku.get("240L-LID-LIGHT-BLUE")?.total, 118);
+    assert.equal(bySku.has("100L-BIN-BLACK"), false);
+  });
+
+  it("keeps the grand total equal to the sum of every stored count", () => {
+    const columnSum = records.reduce((sum, r) => sum + Number(r.total), 0);
+    assert.equal(columnSum, rawSum);
+    assert.equal(grand, rawSum);
+    assert.equal(detailGrandTotal(workbook, mergedEntries.length), rawSum);
+  });
+
+  it("keeps every count on the detail sheet under the canonical lid SKU", () => {
+    const sheet = workbook.getWorksheet("Detailed Counts");
+    assert.ok(sheet);
+    const redLidQty: number[] = [];
+    sheet.eachRow((row) => {
+      if (row.getCell(3).value !== "120L-LID-RED") return;
+      const qty = row.getCell(7).value;
+      if (typeof qty === "number") redLidQty.push(qty);
+    });
+    assert.deepEqual(redLidQty, [98, 7]);
   });
 });

@@ -1,5 +1,11 @@
 import { getCurrentUserIdSync } from "./auth";
 import { db, newId, now } from "./db";
+import {
+  canonicalCountItemId,
+  entryItemIdsFor,
+  foldPlainLids,
+  resolveNewLidItem,
+} from "./lids";
 import type {
   CountEntry,
   CountSession,
@@ -18,15 +24,21 @@ function uid(): string {
 
 // ===== Items =====
 
+async function userItems(): Promise<Item[]> {
+  return db.items.where("userId").equals(uid()).toArray();
+}
+
 export async function listItems(): Promise<Item[]> {
-  const u = uid();
-  const rows = await db.items.where("userId").equals(u).toArray();
-  return rows.sort((a, b) => a.name.localeCompare(b.name));
+  const rows = await userItems();
+  return foldPlainLids(rows).items.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getItem(id: string): Promise<Item | undefined> {
   const u = uid();
-  const item = await db.items.get(id);
+  const rows = await userItems();
+  const fold = foldPlainLids(rows);
+  const canonicalId = fold.canonicalIdByItemId.get(id) ?? id;
+  const item = fold.items.find((it) => it.id === canonicalId);
   if (!item || item.userId !== u) return undefined;
   return item;
 }
@@ -35,10 +47,12 @@ export async function createItem(
   data: Omit<Item, "id" | "userId" | "createdAt" | "updatedAt">
 ): Promise<Item> {
   const u = uid();
+  const resolved = resolveNewLidItem(await userItems(), data);
+  if ("item" in resolved) return resolved.item;
   const item: Item = {
     id: newId(),
     userId: u,
-    ...data,
+    ...resolved.draft,
     createdAt: now(),
     updatedAt: now(),
   };
@@ -64,16 +78,25 @@ export async function findItemByBarcode(barcode: string): Promise<Item | undefin
     .where("[userId+barcode]")
     .equals([u, trimmed])
     .toArray();
-  return rows[0];
+  const hit = rows[0];
+  if (!hit) return undefined;
+  const fold = foldPlainLids(await userItems());
+  const canonicalId = fold.canonicalIdByItemId.get(hit.id) ?? hit.id;
+  return fold.items.find((it) => it.id === canonicalId);
 }
 
 export async function deleteItem(id: string): Promise<void> {
   const u = uid();
+  // An 80L plain lid is the same product as its 120L lid. Deleting either
+  // row removes both, so the hidden SKU cannot reappear with the old counts.
+  const ids = entryItemIdsFor(await userItems(), id);
   await db.transaction("rw", db.items, db.entries, async () => {
-    const existing = await db.items.get(id);
-    if (!existing || existing.userId !== u) return;
-    await db.items.delete(id);
-    await db.entries.where("itemId").equals(id).delete();
+    for (const itemId of ids) {
+      const existing = await db.items.get(itemId);
+      if (!existing || existing.userId !== u) continue;
+      await db.items.delete(itemId);
+      await db.entries.where("itemId").equals(itemId).delete();
+    }
   });
 }
 
@@ -143,11 +166,17 @@ export async function deleteSession(id: string): Promise<void> {
 
 export async function listEntriesForSession(sessionId: string): Promise<CountEntry[]> {
   const u = uid();
-  const rows = await db.entries
-    .where("[userId+sessionId]")
-    .equals([u, sessionId])
-    .toArray();
-  return rows.sort((a, b) => b.createdAt - a.createdAt);
+  const [rows, items] = await Promise.all([
+    db.entries.where("[userId+sessionId]").equals([u, sessionId]).toArray(),
+    userItems(),
+  ]);
+  const canonical = foldPlainLids(items).canonicalIdByItemId;
+  return rows
+    .map((entry) => {
+      const itemId = canonical.get(entry.itemId) ?? entry.itemId;
+      return itemId === entry.itemId ? entry : { ...entry, itemId };
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function listEntriesForItemInSession(
@@ -155,21 +184,26 @@ export async function listEntriesForItemInSession(
   itemId: string
 ): Promise<CountEntry[]> {
   const u = uid();
-  const rows = await db.entries
-    .where("[userId+sessionId+itemId]")
-    .equals([u, sessionId, itemId])
-    .toArray();
-  return rows.sort((a, b) => b.createdAt - a.createdAt);
+  const [items, rows] = await Promise.all([
+    userItems(),
+    db.entries.where("[userId+sessionId]").equals([u, sessionId]).toArray(),
+  ]);
+  const ids = entryItemIdsFor(items, itemId);
+  return rows
+    .filter((entry) => ids.has(entry.itemId))
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function addEntry(
   data: Omit<CountEntry, "id" | "userId" | "createdAt">
 ): Promise<CountEntry> {
   const u = uid();
+  const itemId = canonicalCountItemId(await userItems(), data.itemId);
   const entry: CountEntry = {
     id: newId(),
     userId: u,
     ...data,
+    itemId,
     createdAt: now(),
   };
   await db.entries.add(entry);
@@ -197,11 +231,7 @@ export async function totalForItemInSession(
   sessionId: string,
   itemId: string
 ): Promise<number> {
-  const u = uid();
-  const entries = await db.entries
-    .where("[userId+sessionId+itemId]")
-    .equals([u, sessionId, itemId])
-    .toArray();
+  const entries = await listEntriesForItemInSession(sessionId, itemId);
   return entries.reduce((sum, e) => sum + e.quantity, 0);
 }
 
@@ -257,17 +287,19 @@ export async function itemsWithTotalsForSession(
     db.items.where("userId").equals(u).toArray(),
     db.entries.where("[userId+sessionId]").equals([u, sessionId]).toArray(),
   ]);
+  const fold = foldPlainLids(items);
   const totals = new Map<string, { total: number; count: number }>();
   for (const e of entries) {
-    const cur = totals.get(e.itemId) ?? { total: 0, count: 0 };
+    const itemId = fold.canonicalIdByItemId.get(e.itemId) ?? e.itemId;
+    const cur = totals.get(itemId) ?? { total: 0, count: 0 };
     cur.total += e.quantity;
     cur.count += 1;
-    totals.set(e.itemId, cur);
+    totals.set(itemId, cur);
   }
-  return items
-    .sort((a, b) => a.name.localeCompare(b.name))
+  return fold.items
     .map((it) => {
       const t = totals.get(it.id);
       return { ...it, total: t?.total ?? 0, entryCount: t?.count ?? 0 };
-    });
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
