@@ -1,6 +1,8 @@
 // Warehouse Inventory service worker.
-// Bump VERSION to invalidate every cache on next install.
-const VERSION = "v13";
+// Bump VERSION to invalidate every cache on next install. Required when the
+// worker script itself changes. App-code deploys are picked up without a bump
+// because document navigations are network-first (see below).
+const VERSION = "v14";
 const STATIC_CACHE = `inv-static-${VERSION}`;
 const PAGES_CACHE = `inv-pages-${VERSION}`;
 const OFFLINE_URL = "/";
@@ -55,6 +57,10 @@ self.addEventListener("fetch", (event) => {
   // Never intercept API calls (Gemini scan endpoint).
   if (url.pathname.startsWith("/api/")) return;
 
+  // The browser checks this URL to decide whether to install a new worker.
+  // Serving it from the static cache would pin an old worker forever.
+  if (url.pathname === "/sw.js") return;
+
   // Skip range requests (video/audio) and large uploads.
   if (req.headers.get("range")) return;
 
@@ -68,7 +74,11 @@ self.addEventListener("fetch", (event) => {
 
   const accept = req.headers.get("accept") || "";
   if (req.mode === "navigate" || accept.includes("text/html")) {
-    event.respondWith(staleWhileRevalidate(req, PAGES_CACHE));
+    // Network-first. The previous worker returned the cached document and
+    // refreshed it in the background, so the first open after a deploy still
+    // ran the previous JavaScript. That is why a re-export kept the old
+    // Summary filter (dropping zero and negative SKUs) after the fix shipped.
+    event.respondWith(networkFirst(req, PAGES_CACHE));
   }
 });
 
@@ -88,25 +98,20 @@ async function cacheFirst(req, cacheName) {
   }
 }
 
-async function staleWhileRevalidate(req, cacheName) {
+async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(req);
-  const network = fetch(req)
-    .then((res) => {
-      if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
-      return res;
-    })
-    .catch(() => null);
-  if (cached) {
-    network.catch(() => {});
-    return cached;
+  try {
+    const res = await fetch(req);
+    if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
+    return res;
+  } catch {
+    const cached = await cache.match(req);
+    if (cached) return cached;
+    const fallback = await cache.match(OFFLINE_URL);
+    if (fallback) return fallback;
+    return new Response("Offline", {
+      status: 503,
+      headers: { "Content-Type": "text/plain" },
+    });
   }
-  const fresh = await network;
-  if (fresh) return fresh;
-  const fallback = await cache.match(OFFLINE_URL);
-  if (fallback) return fallback;
-  return new Response("Offline", {
-    status: 503,
-    headers: { "Content-Type": "text/plain" },
-  });
 }

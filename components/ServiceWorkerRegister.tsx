@@ -43,9 +43,18 @@ export function ServiceWorkerRegister() {
       });
     };
 
+    const checkForUpdate = () => {
+      navigator.serviceWorker.getRegistration("/").then((reg) => {
+        reg?.update().catch(() => {});
+      });
+    };
+
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
-      .then(handle)
+      .then((reg) => {
+        handle(reg);
+        reg.update().catch(() => {});
+      })
       .catch((err) => {
         console.warn("SW register failed:", err);
       });
@@ -55,10 +64,15 @@ export function ServiceWorkerRegister() {
       hasReloaded = true;
       window.location.reload();
     };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") checkForUpdate();
+    };
     navigator.serviceWorker.addEventListener(
       "controllerchange",
       onControllerChange,
     );
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", checkForUpdate);
 
     return () => {
       cancelled = true;
@@ -66,6 +80,8 @@ export function ServiceWorkerRegister() {
         "controllerchange",
         onControllerChange,
       );
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", checkForUpdate);
     };
   }, []);
 
