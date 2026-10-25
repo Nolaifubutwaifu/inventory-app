@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import type { CountEntry, CountSession, Item } from "./types";
 import { db } from "./db";
+import { foldStocktake } from "./lids";
 import { formatDate, formatDateTime } from "./utils";
 
 // Styling shared by both sheets, modelled on the MYOB-style reports the
@@ -53,15 +54,20 @@ export function buildSessionWorkbook(
   items: Item[],
   entries: CountEntry[]
 ): ExcelJS.Workbook {
-  const itemsById = new Map(items.map((i) => [i.id, i]));
-  const fillByCategory = buildCategoryFills(items);
+  // 80L and 120L plain lids are one product. Fold before either sheet is
+  // built so the summary has one line per colour and the detail rows name
+  // that same 120L lid. Quantities are not dropped, so both grand totals
+  // stay equal to the sum of the stored counts.
+  const folded = foldStocktake(items, entries);
+  const itemsById = new Map(folded.items.map((i) => [i.id, i]));
+  const fillByCategory = buildCategoryFills(folded.items);
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Warehouse Inventory App";
   workbook.created = new Date();
 
-  buildSummarySheet(workbook, session, items, entries, fillByCategory);
-  buildDetailSheet(workbook, session, entries, itemsById, fillByCategory);
+  buildSummarySheet(workbook, session, folded.items, folded.entries, fillByCategory);
+  buildDetailSheet(workbook, session, folded.entries, itemsById, fillByCategory);
   return workbook;
 }
 

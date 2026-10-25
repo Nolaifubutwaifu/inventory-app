@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCurrentUserId } from "./auth";
 import { db } from "./db";
+import { foldPlainLids } from "./lids";
 import {
   itemsWithTotalsForSession,
   listEntriesForItemInSession,
@@ -51,7 +52,7 @@ export function useItems(): Item[] | undefined {
   return useLiveQuery(async () => {
     if (!userId) return [];
     const rows = await db.items.where("userId").equals(userId).toArray();
-    return rows.sort((a, b) => a.name.localeCompare(b.name));
+    return foldPlainLids(rows).items.sort((a, b) => a.name.localeCompare(b.name));
   }, [userId]);
 }
 
@@ -61,7 +62,7 @@ export function useCategories(): string[] | undefined {
     if (!userId) return [];
     const rows = await db.items.where("userId").equals(userId).toArray();
     const set = new Set<string>();
-    for (const it of rows) {
+    for (const it of foldPlainLids(rows).items) {
       const c = it.category?.trim();
       if (c) set.add(c);
     }
@@ -73,7 +74,10 @@ export function useItem(id: string | undefined): Item | undefined {
   const userId = useCurrentUserId();
   return useLiveQuery(async () => {
     if (!id || !userId) return undefined;
-    const it = await db.items.get(id);
+    const rows = await db.items.where("userId").equals(userId).toArray();
+    const fold = foldPlainLids(rows);
+    const canonicalId = fold.canonicalIdByItemId.get(id) ?? id;
+    const it = fold.items.find((item) => item.id === canonicalId);
     return it && it.userId === userId ? it : undefined;
   }, [id, userId]);
 }
