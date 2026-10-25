@@ -46,7 +46,7 @@ function SessionDetailInner() {
     );
   }
 
-  const countedItems = totals?.filter((i) => i.total > 0) ?? [];
+  const countedItems = totals?.filter((i) => i.entryCount > 0) ?? [];
   const totalUnits = countedItems.reduce((sum, i) => sum + i.total, 0);
 
   async function onExport() {

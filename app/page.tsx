@@ -29,7 +29,7 @@ export default function HomePage() {
 
   const itemCount = items?.length ?? 0;
   const sessionCount = sessions?.length ?? 0;
-  const countedItems = totals?.filter((i) => i.total > 0).length ?? 0;
+  const countedItems = totals?.filter((i) => i.entryCount > 0).length ?? 0;
   const totalUnits = totals?.reduce((s, i) => s + i.total, 0) ?? 0;
 
   return (

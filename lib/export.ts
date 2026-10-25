@@ -37,6 +37,22 @@ export async function exportSessionToXlsx(sessionId: string): Promise<{
     db.entries.where("sessionId").equals(sessionId).sortBy("createdAt"),
   ]);
 
+  const workbook = buildSessionWorkbook(session, items, entries);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const datePart = formatDate(session.createdAt).replace(/[^0-9A-Za-z]+/g, "-");
+  const filename = `${slugify(session.name)}-${datePart}.xlsx`;
+  return { blob, filename };
+}
+
+export function buildSessionWorkbook(
+  session: CountSession,
+  items: Item[],
+  entries: CountEntry[]
+): ExcelJS.Workbook {
   const itemsById = new Map(items.map((i) => [i.id, i]));
   const fillByCategory = buildCategoryFills(items);
 
@@ -46,14 +62,7 @@ export async function exportSessionToXlsx(sessionId: string): Promise<{
 
   buildSummarySheet(workbook, session, items, entries, fillByCategory);
   buildDetailSheet(workbook, session, entries, itemsById, fillByCategory);
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const datePart = formatDate(session.createdAt).replace(/[^0-9A-Za-z]+/g, "-");
-  const filename = `${slugify(session.name)}-${datePart}.xlsx`;
-  return { blob, filename };
+  return workbook;
 }
 
 function buildCategoryFills(items: Item[]): Map<string, string> {
@@ -177,11 +186,13 @@ function buildSummarySheet(
     totalsByItem.set(e.itemId, cur);
   }
 
-  // Keep each category's rows together, sorted by item name within the group.
+  // Every SKU with count rows belongs here, including a net of 0 or below.
+  // Backorders are entered as negative quantities and must stay visible.
+  // The total is the raw sum of those quantities — it is not clamped.
   const rows = items
     .map((item) => ({ item, t: totalsByItem.get(item.id) }))
     .filter((r): r is { item: Item; t: { total: number; locations: Map<string, number> } } =>
-      Boolean(r.t && r.t.total > 0)
+      r.t !== undefined
     )
     .sort((a, b) => {
       const byCat = a.item.category.localeCompare(b.item.category);
