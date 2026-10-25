@@ -30,8 +30,8 @@ export default function CountPage() {
   const filtered = useMemo(() => {
     if (!items) return [];
     let list = items;
-    if (filter === "counted") list = list.filter((i) => i.total > 0);
-    if (filter === "not-counted") list = list.filter((i) => i.total === 0);
+    if (filter === "counted") list = list.filter((i) => i.entryCount > 0);
+    if (filter === "not-counted") list = list.filter((i) => i.entryCount === 0);
     if (category !== ALL) list = list.filter((i) => i.category === category);
     if (!q.trim()) return list;
     return list.filter((i) =>
@@ -39,7 +39,7 @@ export default function CountPage() {
     );
   }, [items, q, filter, category]);
 
-  const counted = items?.filter((i) => i.total > 0).length ?? 0;
+  const counted = items?.filter((i) => i.entryCount > 0).length ?? 0;
 
   if (!session) {
     return (
